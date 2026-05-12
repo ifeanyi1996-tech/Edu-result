@@ -1,0 +1,32 @@
+/* ─── Toast.module.css ──────────────────────────────────── */
+
+.container {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  max-width: 360px;
+  color: #fff;
+}
+
+.success {
+  background: var(--emerald);
+}
+.error {
+  background: var(--red);
+}
+.info {
+  background: var(--sky);
+}

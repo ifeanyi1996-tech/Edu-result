@@ -1,0 +1,125 @@
+/* ─── LoginPage.module.css ────────────────────────────────── */
+
+.screen {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; position: relative; overflow: hidden; transition: background 0.4s;
+}
+.adminBg   { background: linear-gradient(145deg, #0a1628 0%, #0f1f35 55%, #1a2f4a 100%); }
+.teacherBg { background: linear-gradient(145deg, #072726 0%, #0b6b5e 60%, #0d9488 100%); }
+
+.blobTop { position:fixed; top:-100px; right:-100px; width:380px; height:380px; border-radius:50%; background:rgba(255,255,255,0.03); pointer-events:none; }
+.blobBottom { position:fixed; bottom:-80px; left:-80px; width:280px; height:280px; border-radius:50%; background:rgba(255,255,255,0.03); pointer-events:none; }
+
+.card {
+  background: #fff; border-radius: 24px;
+  padding: 36px 38px 38px; width: 100%; max-width: 420px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+  position: relative; z-index: 1;
+}
+
+/* ── Logo row ── */
+.logoRow { display:flex; align-items:center; gap:14px; margin-bottom:22px; padding-bottom:18px; border-bottom:2px solid #f1f5f9; }
+.logoCircle {
+  width:50px; height:50px; border-radius:14px;
+  background:var(--navy); color:var(--gold);
+  font-family:"Playfair Display",serif; font-size:16px; font-weight:900;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; box-shadow:0 4px 16px rgba(15,31,53,0.3);
+}
+.logoText { font-family:"Playfair Display",serif; font-size:24px; color:var(--navy); line-height:1; }
+.logoAccent { color:var(--gold); }
+.tagline { font-size:11px; color:var(--muted); margin-top:3px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+
+/* ── Tabs ── */
+.tabs { display:flex; background:#f1f5f9; border-radius:12px; padding:4px; gap:4px; margin-bottom:16px; }
+.tab {
+  flex:1; padding:10px; border:none; border-radius:9px; background:transparent;
+  font-family:"Outfit",sans-serif; font-size:13px; font-weight:700; color:var(--muted);
+  cursor:pointer; transition:all 0.2s; letter-spacing:0.3px;
+}
+.tab:hover:not(:disabled) { color:var(--navy); background:rgba(15,31,53,0.06); }
+.tab:disabled { cursor:not-allowed; opacity:0.6; }
+.tabActiveAdmin   { background:var(--navy)!important; color:var(--gold)!important; box-shadow:0 2px 8px rgba(15,31,53,0.3); }
+.tabActiveTeacher { background:var(--teal)!important; color:#fff!important; box-shadow:0 2px 8px rgba(13,148,136,0.3); }
+
+/* ── Firebase badge ── */
+.firebaseBadge { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-bottom:20px; }
+.dot { width:7px; height:7px; border-radius:50%; animation:pulse 2.2s ease-in-out infinite; flex-shrink:0; }
+.dotAdmin   { background:#f0a500; }
+.dotTeacher { background:var(--teal); }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.45;transform:scale(0.75)} }
+
+/* ── Form ── */
+.form { display:flex; flex-direction:column; gap:0; }
+.field { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
+.label { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+
+.input {
+  width:100%; padding:12px 16px; border:2px solid #e2e8f0; border-radius:10px;
+  font-family:"Outfit",sans-serif; font-size:15px; color:var(--navy);
+  background:#f8fafc; outline:none; transition:border-color 0.2s, background 0.2s;
+}
+.input:focus { border-color:var(--gold); background:#fff; }
+.input:disabled { opacity:0.6; }
+.inputErr { border-color:var(--red)!important; background:#fff5f5!important; }
+.inputGrow { flex:1; border-radius:10px 0 0 10px!important; }
+.inputPin { font-size:30px; font-weight:700; text-align:center; letter-spacing:12px; padding:14px 16px; }
+
+.passWrap { display:flex; }
+.eyeBtn {
+  background:#f8fafc; border:2px solid #e2e8f0; border-left:none;
+  border-radius:0 10px 10px 0; padding:0 14px; cursor:pointer; font-size:17px;
+  transition:background 0.15s; flex-shrink:0;
+}
+.eyeBtn:hover { background:#eef2ff; }
+
+.pinNote { font-size:12px; color:var(--muted); }
+
+.errorBox {
+  display:flex; align-items:flex-start; gap:8px;
+  background:#fef2f2; border:1.5px solid #fca5a5; color:#b91c1c;
+  border-radius:10px; padding:11px 14px; font-size:13px; font-weight:600;
+  margin-bottom:14px; line-height:1.4;
+}
+
+.submitBtn {
+  width:100%; padding:14px; border:none; border-radius:11px;
+  font-family:"Outfit",sans-serif; font-size:15px; font-weight:700; color:#fff;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  min-height:50px; transition:filter 0.2s, opacity 0.2s; letter-spacing:0.3px; margin-bottom:16px;
+}
+.submitBtn:hover:not(:disabled) { filter:brightness(1.09); }
+.submitBtn:disabled { opacity:0.6; cursor:not-allowed; }
+.submitAdmin   { background:var(--navy); }
+.submitTeacher { background:var(--teal); }
+
+.spinner {
+  display:inline-block; width:22px; height:22px;
+  border:3px solid rgba(255,255,255,0.25); border-top-color:#fff;
+  border-radius:50%; animation:spin 0.65s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── Register row ── */
+.registerRow {
+  border-top: 1.5px solid #f1f5f9;
+  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.registerText { font-size:13px; color:var(--muted); }
+.registerBtn {
+  background:none; border:none; font-size:13px; font-weight:800;
+  cursor:pointer; color:var(--gold); font-family:"Outfit",sans-serif; padding:0;
+  transition:color 0.15s;
+}
+.registerBtn:hover:not(:disabled) { color:var(--navy); text-decoration:underline; }
+.registerBtn:disabled { opacity:0.5; cursor:not-allowed; }
+
+@media (max-width:480px) {
+  .card { padding:28px 20px 32px; }
+  .inputPin { font-size:24px; letter-spacing:8px; }
+}

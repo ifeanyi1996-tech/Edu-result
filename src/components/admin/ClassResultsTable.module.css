@@ -1,0 +1,97 @@
+/* ─── ClassResultsTable.module.css ─────────────────────── */
+
+.wrapper {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+
+.classHeader {
+  background: var(--navy);
+  color: #fff;
+  padding: 14px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.className {
+  color: var(--gold);
+}
+
+.count {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* ── Table ── */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table thead tr {
+  background: #f8fafc;
+}
+
+.table thead th {
+  padding: 10px 13px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.table tbody tr:hover {
+  background: #f5f8ff;
+}
+
+.table tbody td {
+  padding: 11px 13px;
+  vertical-align: middle;
+}
+
+/* ── Cells ── */
+.center {
+  text-align: center;
+}
+
+.studentName {
+  font-weight: 600;
+}
+
+.rankBadge {
+  background: var(--gold);
+  color: var(--navy);
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.gradeChip {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 12px;
+}

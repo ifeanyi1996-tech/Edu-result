@@ -1,0 +1,23 @@
+.panel { }
+.heading { font-family: "Playfair Display", serif; font-size: 24px; color: var(--navy); margin-bottom: 4px; }
+.sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+
+.filterBar { display: flex; gap: 12px; margin-bottom: 18px; }
+.filterSelect { padding: 9px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; font-family: "Outfit", sans-serif; color: var(--navy); background: #fff; outline: none; cursor: pointer; transition: border-color 0.2s; }
+.filterSelect:focus { border-color: var(--teal); }
+
+.studentList { display: flex; flex-direction: column; gap: 16px; }
+.empty { text-align: center; padding: 40px; color: var(--muted); }
+
+.studentBlock { background: #fff; border-radius: 12px; border: 1px solid var(--border); padding: 18px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.studentHeader { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.studentHeader strong { font-size: 15px; color: var(--navy); }
+.classBadge { background: var(--navy); color: #fff; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.unsavedDot { background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
+
+.roleRow { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.roleLabel { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.textarea { width: 100%; padding: 10px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; font-family: "Outfit", sans-serif; color: var(--navy); resize: vertical; outline: none; transition: border-color 0.2s; }
+.textarea:focus { border-color: var(--teal); }
+
+.saveRow { display: flex; justify-content: flex-end; }

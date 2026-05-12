@@ -1,0 +1,48 @@
+/* ─── Input.module.css ──────────────────────────────────── */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: "Outfit", sans-serif;
+  color: var(--navy);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  border-color: var(--gold);
+}
+
+.input::placeholder {
+  color: #b0bec5;
+}
+
+.inputError {
+  border-color: var(--red);
+  background: #fff5f5;
+}
+
+.errorText {
+  font-size: 12px;
+  color: var(--red);
+}

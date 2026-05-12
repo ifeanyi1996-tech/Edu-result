@@ -1,0 +1,78 @@
+/* ─── Button.module.css ─────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  border-radius: 8px;
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.18s, transform 0.1s;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.btn:hover:not(.disabled) {
+  filter: brightness(1.1);
+}
+
+.btn:active:not(.disabled) {
+  transform: scale(0.97);
+}
+
+/* ── Sizes ── */
+.sm {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+.md {
+  padding: 10px 20px;
+  font-size: 14px;
+}
+.lg {
+  padding: 13px 28px;
+  font-size: 15px;
+}
+
+/* ── Variants ── */
+.primary {
+  background: var(--navy);
+  color: #fff;
+}
+.gold {
+  background: var(--gold);
+  color: var(--navy);
+}
+.emerald {
+  background: var(--emerald);
+  color: #fff;
+}
+.red {
+  background: var(--red);
+  color: #fff;
+}
+.sky {
+  background: var(--sky);
+  color: #fff;
+}
+.teal {
+  background: var(--teal);
+  color: #fff;
+}
+.outline {
+  background: transparent;
+  color: var(--navy);
+  border: 2px solid var(--border);
+}
+.outline:hover:not(.disabled) {
+  border-color: var(--navy);
+  filter: none;
+}
+
+/* ── Disabled ── */
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,0 +1,126 @@
+/* ─── Global Reset & Variables ─────────────────────────── */
+:root {
+  --navy: #0f1f35;
+  --navy2: #1a3352;
+  --gold: #f0a500;
+  --gold2: #ffc130;
+  --emerald: #059669;
+  --red: #dc2626;
+  --sky: #0ea5e9;
+  --teal: #0d9488;
+  --teal2: #0f766e;
+  --cream: #faf7f2;
+  --border: #e2e8f2;
+  --muted: #64748b;
+  --card: #ffffff;
+  --radius: 12px;
+  --shadow: 0 4px 24px rgba(15, 31, 53, 0.08);
+  --shadow-lg: 0 16px 48px rgba(15, 31, 53, 0.16);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Outfit", sans-serif;
+  background: var(--cream);
+  color: var(--navy);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+input,
+select,
+button,
+textarea {
+  font-family: "Outfit", sans-serif;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+/* ─── Keyframe Animations ───────────────────────────────── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ─── Utility Animation Classes ─────────────────────────── */
+.anim-fade-up {
+  animation: fadeUp 0.35s ease both;
+}
+.anim-slide-right {
+  animation: slideInRight 0.3s ease both;
+}
+.anim-pop-in {
+  animation: popIn 0.25s ease both;
+}
+
+/* ─── Print ─────────────────────────────────────────────── */
+@media print {
+  body > *:not(#print-root) {
+    display: none !important;
+  }
+  #print-root {
+    display: block !important;
+  }
+}

@@ -1,0 +1,347 @@
+/* ─── AdminPage.module.css ──────────────────────────────── */
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 24px;
+}
+
+/* ── Page header ── */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.pageTitle {
+  font-family: "Playfair Display", serif;
+  font-size: 32px;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.pageSub {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Card top row ── */
+.cardTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cardTitle {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--navy);
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Table ── */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead {
+  background: var(--navy);
+  color: #fff;
+}
+
+.table thead th {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.table tbody tr:hover {
+  background: #f5f8ff;
+}
+
+.table tbody td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+
+.emptyCell {
+  text-align: center;
+  padding: 30px !important;
+  color: var(--muted);
+}
+
+.bold {
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── Badges ── */
+.classBadge {
+  background: var(--navy);
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.subjectBadge {
+  background: #e0f2fe;
+  color: var(--sky);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pinCode {
+  background: #f1f5f9;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+/* ── Filter bar ── */
+.filterBar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.filterSelect {
+  padding: 9px 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: "Outfit", sans-serif;
+  color: var(--navy);
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filterSelect:focus {
+  border-color: var(--gold);
+}
+
+/* ── Empty state ── */
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+.emptyIcon {
+  font-size: 44px;
+  margin-bottom: 14px;
+}
+
+/* ── Modals ── */
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.pinHint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -8px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .page {
+    padding: 16px;
+  }
+  .pageHeader {
+    flex-direction: column;
+  }
+}
+
+/* ── Action cell (multiple buttons) ── */
+.actionCell {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Role pill ── */
+.rolePill {
+  display: inline-block;
+  background: #ede9fe;
+  color: #6d28d9;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+/* ── Affective ratings modal grid ── */
+.affGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.affHeader {
+  display: grid;
+  grid-template-columns: 1fr 44px 44px 44px 44px 44px;
+  background: var(--navy);
+  color: #fff;
+  padding: 8px 12px;
+  gap: 4px;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.affBehCol {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.affGradeHead {
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.affRow {
+  display: grid;
+  grid-template-columns: 1fr 44px 44px 44px 44px 44px;
+  padding: 6px 12px;
+  gap: 4px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+
+.affRow:last-child { border-bottom: none; }
+.affRow:nth-child(even) { background: #f8fafc; }
+.affRow:hover { background: #f0f9ff; }
+
+.affBehCol {
+  font-size: 13px;
+  color: var(--navy);
+}
+
+.affGradeBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.15s;
+  font-family: "Outfit", sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+}
+
+.affGradeBtn:hover { border-color: var(--teal); color: var(--teal); }
+
+.affGradeSelected {
+  background: var(--teal);
+  color: #fff !important;
+  border-color: var(--teal) !important;
+}
+
+.affKey {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 10px;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* ── PIN cell with copy button ── */
+.pinCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copyPinBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+  line-height: 1;
+}
+.copyPinBtn:hover { background: #f0f9ff; border-color: var(--sky); }

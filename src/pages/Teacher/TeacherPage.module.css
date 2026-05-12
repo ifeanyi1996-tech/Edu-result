@@ -1,0 +1,162 @@
+/* ─── TeacherPage.module.css ────────────────────────────── */
+
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 28px 24px;
+}
+
+/* ── Locked banner ── */
+.lockedBanner {
+  background: #fee2e2;
+  border: 2px solid var(--red);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  color: var(--red);
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Subject banner ── */
+.subjectBanner {
+  background: linear-gradient(135deg, var(--teal) 0%, var(--teal2) 100%);
+  border-radius: var(--radius);
+  padding: 22px 28px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.bannerIcon {
+  font-size: 36px;
+  flex-shrink: 0;
+}
+
+.bannerText {
+  flex: 1;
+  min-width: 180px;
+}
+
+.bannerSubject {
+  font-family: "Playfair Display", serif;
+  font-size: 24px;
+  color: #fff;
+  font-weight: 700;
+}
+
+.bannerSub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 3px;
+}
+
+.bannerStats {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.bannerNum {
+  font-family: "Playfair Display", serif;
+  font-size: 28px;
+  color: #fff;
+  font-weight: 700;
+}
+
+.bannerNumLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Filter ── */
+.filterBar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filterSelect {
+  padding: 9px 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: "Outfit", sans-serif;
+  color: var(--navy);
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filterSelect:focus {
+  border-color: var(--teal);
+}
+
+/* ── Student grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+/* ── Empty state ── */
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+.emptyIcon {
+  font-size: 44px;
+  margin-bottom: 14px;
+}
+
+.emptyState p {
+  font-size: 15px;
+}
+
+/* ── No subject ── */
+.noSubject {
+  max-width: 500px;
+  margin: 80px auto;
+  text-align: center;
+  padding: 24px;
+}
+
+.noSubjectIcon {
+  font-size: 52px;
+  margin-bottom: 16px;
+}
+
+.noSubject h2 {
+  font-family: "Playfair Display", serif;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+
+.noSubject p {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .page {
+    padding: 16px;
+  }
+  .subjectBanner {
+    padding: 18px 16px;
+  }
+}
+
+/* ── Section tabs for role holders ── */
+.sectionTabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 24px; }
+.sectionTab { background: none; border: none; padding: 11px 20px; font-family: "Outfit", sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.2s, border-color 0.2s; }
+.sectionTab:hover { color: var(--navy); }
+.sectionTabActive { color: var(--navy); border-bottom-color: var(--teal); }

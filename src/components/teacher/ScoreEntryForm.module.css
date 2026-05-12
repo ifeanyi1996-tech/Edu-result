@@ -1,0 +1,235 @@
+/* ─── ScoreEntryForm.module.css ─────────────────────────── */
+
+.wrapper {
+  /* container handled by TeacherPage */
+}
+
+/* ── Top row ── */
+.topRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.backBtn {
+  background: none;
+  border: 2px solid var(--border);
+  color: var(--navy);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: "Outfit", sans-serif;
+  transition: border-color 0.2s;
+}
+
+.backBtn:hover {
+  border-color: var(--navy);
+}
+
+.subjectNote {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Card shell ── */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.cardHeader {
+  background: var(--navy);
+  padding: 22px 28px;
+}
+
+.studentName {
+  font-family: "Playfair Display", serif;
+  font-size: 24px;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.studentClass {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.cardBody {
+  padding: 28px;
+}
+
+/* ── Subject label ── */
+.subjectLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e0f7f5;
+}
+
+/* ── Score fields ── */
+.fieldsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.maxNote {
+  font-weight: 400;
+  color: #b0bec5;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.scoreInput {
+  font-family: "Playfair Display", serif;
+  font-size: 40px;
+  text-align: center;
+  padding: 18px 10px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  color: var(--navy);
+  background: #f8fafc;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  width: 100%;
+}
+
+.scoreInput:focus {
+  border-color: var(--teal);
+  background: #fff;
+}
+
+.scoreInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.inputError {
+  border-color: var(--red) !important;
+  background: #fff5f5 !important;
+}
+
+.outOf {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.errorMsg {
+  text-align: center;
+  font-size: 12px;
+  color: var(--red);
+}
+
+/* ── Total row ── */
+.totalRow {
+  margin-top: 28px;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+  border-radius: 12px;
+  padding: 20px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.totalLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.totalValue {
+  font-family: "Playfair Display", serif;
+  font-size: 44px;
+  color: var(--gold);
+  line-height: 1.1;
+}
+
+.totalMax {
+  font-size: 18px;
+  opacity: 0.5;
+}
+
+.gradeSection {
+  text-align: right;
+}
+
+.gradeChip {
+  display: inline-block;
+  font-size: 22px;
+  font-weight: 800;
+  padding: 6px 20px;
+  border-radius: 20px;
+  margin-top: 4px;
+}
+
+.gradeEmpty {
+  display: inline-block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 6px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  margin-top: 4px;
+}
+
+/* ── Actions ── */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .fieldsGrid {
+    grid-template-columns: 1fr;
+  }
+  .cardBody {
+    padding: 20px 16px;
+  }
+}
+
+/* ── Comment + Signature additions ── */
+.commentSection { margin-top: 20px; display: flex; flex-direction: column; gap: 6px; }
+.commentLabel { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.commentInput { width: 100%; padding: 10px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; font-family: "Outfit", sans-serif; color: var(--navy); resize: vertical; outline: none; transition: border-color 0.2s; }
+.commentInput:focus { border-color: var(--teal); }
+.commentInput:disabled { opacity: 0.65; background: #f8fafc; }
+
+.sigSection { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.sigHint { font-weight: 400; color: #b0bec5; text-transform: none; letter-spacing: 0; font-size: 11px; }
+.sigPreview { max-width: 100%; height: 90px; border: 2px solid var(--border); border-radius: 8px; background: #f8fafc; object-fit: contain; }
+.sigEmpty { height: 90px; border: 2px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; }
