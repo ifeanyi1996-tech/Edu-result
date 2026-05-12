@@ -23,7 +23,7 @@ export default function App() {
       : undefined;
 
   async function handleLogin(...args) {
-    return portal === "admin" ? adminLogin(args[0], args[1]) : teacherLogin(args[0]);
+    return portal === "admin" ? adminLogin(args[0], args[1]) : teacherLogin(args[0], args[1]);
   }
 
   // ── Splash ──────────────────────────────────────────────────────────────
