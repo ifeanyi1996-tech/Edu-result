@@ -502,13 +502,17 @@ export default function AdminPage({ toast, school = {} }) {
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
-                  <tr><th>#</th><th>Student Name</th><th>Class</th><th>Adm No.</th><th>Sex</th><th>Term</th><th>Actions</th></tr>
+                  <tr><th>#</th><th>Student Name</th><th>Class</th><th>Adm No.</th><th>Sex</th><th>Term</th><th>Result Link</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {!filteredStudents.length ? (
-                    <tr><td colSpan={7} className={styles.emptyCell}>No students yet. Add one above.</td></tr>
+                    <tr><td colSpan={8} className={styles.emptyCell}>No students yet. Add one above.</td></tr>
                   ) : filteredStudents.map((s, i) => {
                     const info = (db.studentInfo || {})[s.id] || {};
+                    const schoolUid = localStorage.getItem("schoolUid") || "";
+                    const resultUrl = schoolUid
+                      ? `${window.location.origin}${window.location.pathname}?result=${s.id}&school=${schoolUid}`
+                      : null;
                     return (
                       <tr key={s.id}>
                         <td>{i + 1}</td>
@@ -517,6 +521,18 @@ export default function AdminPage({ toast, school = {} }) {
                         <td className={styles.muted}>{info.admNo || <em>—</em>}</td>
                         <td className={styles.muted}>{info.sex || <em>—</em>}</td>
                         <td className={styles.muted}>{info.term || <em>—</em>}</td>
+                        <td>
+                          {resultUrl ? (
+                            <Button
+                              size="sm"
+                              variant="gold"
+                              onClick={() => {
+                                navigator.clipboard.writeText(resultUrl);
+                                toast(`🔗 Link copied for ${s.name}!`);
+                              }}
+                            >🔗 Copy Link</Button>
+                          ) : <em style={{ fontSize: 11, color: "#aaa" }}>No school ID</em>}
+                        </td>
                         <td className={styles.actionCell}>
                           <Button size="sm" variant="sky" onClick={() => openEditStudent(s)}>✏️ Edit Info</Button>
                           <Button size="sm" variant="teal" onClick={() => openAffective(s)}>📊 Affective</Button>

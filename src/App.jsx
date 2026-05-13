@@ -8,10 +8,39 @@ import Topbar         from "./components/common/Topbar";
 import Toast          from "./components/common/Toast";
 import AdminPage      from "./pages/Admin/AdminPage";
 import TeacherPage    from "./pages/Teacher/TeacherPage";
+import StudentResultPage from "./pages/Result/StudentResultPage";
 import { useToast }   from "./utils/useToast";
 import styles         from "./App.module.css";
 
+// ── Check if this is a public result link ───────────────────────────────────
+// URL format: https://yourapp.com?result=STUDENT_ID&school=SCHOOL_ID
+const params     = new URLSearchParams(window.location.search);
+const resultStudentId = params.get("result");
+const resultSchoolId  = params.get("school");
+const isPublicResult  = !!(resultStudentId && resultSchoolId);
+
 export default function App() {
+  // ── If it's a public result link, skip auth entirely ──────────────────
+  if (isPublicResult) {
+    return (
+      <>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          body { margin: 0; background: #f8fafc; }
+        `}</style>
+        <StudentResultPage
+          schoolId={resultSchoolId}
+          studentId={resultStudentId}
+        />
+      </>
+    );
+  }
+
+  // ── Normal authenticated app ────────────────────────────────────────────
+  return <AuthenticatedApp />;
+}
+
+function AuthenticatedApp() {
   const { session, authLoading, screen, setScreen, portal, adminLogin, teacherLogin, register, logout, switchPortal } = useAuth();
   const { db }              = useDB();
   const { profile }         = useSchool();
@@ -26,7 +55,6 @@ export default function App() {
     return portal === "admin" ? adminLogin(args[0], args[1]) : teacherLogin(args[0], args[1]);
   }
 
-  // ── Splash ──────────────────────────────────────────────────────────────
   if (authLoading) {
     return (
       <div className={styles.splash}>
@@ -40,7 +68,6 @@ export default function App() {
   return (
     <>
       <Toast toasts={toasts} />
-
       {!session ? (
         screen === "register" ? (
           <RegisterPage
