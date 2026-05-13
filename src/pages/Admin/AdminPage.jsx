@@ -42,7 +42,7 @@ export default function AdminPage({ toast, school = {} }) {
   const [newSubject, setNewSubject] = useState("");
 
   // Edit student info form
-  const [editInfo, setEditInfo] = useState({ admNo: "", sex: "", term: "" });
+  const [editInfo, setEditInfo] = useState({ admNo: "", sex: "", term: "", passport: "" });
 
   // Affective draft
   const [affDraft, setAffDraft] = useState({});
@@ -124,13 +124,13 @@ export default function AdminPage({ toast, school = {} }) {
   // ── Edit student info ───────────────────────────────────────────────
   function openEditStudent(student) {
     const info = (db.studentInfo || {})[student.id] || {};
-    setEditInfo({ admNo: info.admNo || "", sex: info.sex || "", term: info.term || "" });
+    setEditInfo({ admNo: info.admNo || "", sex: info.sex || "", term: info.term || "", passport: info.passport || "" });
     setEditStudentModal(student);
   }
   function saveStudentInfo() {
     updateDB((d) => {
       if (!d.studentInfo) d.studentInfo = {};
-      d.studentInfo[editStudentModal.id] = { admNo: editInfo.admNo, sex: editInfo.sex, term: editInfo.term };
+      d.studentInfo[editStudentModal.id] = { admNo: editInfo.admNo, sex: editInfo.sex, term: editInfo.term, passport: editInfo.passport || "" };
       return d;
     });
     setEditStudentModal(null);
@@ -180,53 +180,71 @@ export default function AdminPage({ toast, school = {} }) {
     });
 
     const css = `
-      @page { size: A4 portrait; margin: 10mm; }
+      @page { size: A4 portrait; margin: 8mm 10mm; }
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: Arial, sans-serif; font-size: 11px; color: #000; background: #fff; }
-      .page { width: 100%; page-break-after: always; padding: 4px; }
+      body { font-family: Arial, sans-serif; font-size: 10.5px; color: #000; background: #fff; }
+      .page { width: 100%; page-break-after: always; }
       .page:last-child { page-break-after: avoid; }
-      .school-header { display: flex; align-items: center; justify-content: center; gap: 16px; border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 4px; }
-      .school-logo-wrap { width: 70px; height: 70px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-      .school-logo-img { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #000; display: block; }
-      .school-logo-text { width: 70px; height: 70px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; text-align: center; padding: 6px; word-break: break-word; line-height: 1.2; }
-      .school-name { text-align: center; }
-      .school-name h1 { font-size: 17px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; line-height: 1.2; text-align: center; }
-      .school-name .address { font-size: 10.5px; margin-top: 2px; text-align: center; }
-      .report-title { text-align: center; font-size: 13px; font-weight: bold; text-decoration: underline; text-transform: uppercase; margin: 5px 0; letter-spacing: 0.5px; }
-      .info-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; border: 1px solid #000; }
-      .info-row2 { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid #000; border-top: none; }
-      .info-cell { padding: 3px 6px; border-right: 1px solid #000; font-size: 10.5px; }
-      .info-cell:last-child { border-right: none; }
-      .info-line { display: inline-block; min-width: 60px; border-bottom: 1px solid #000; }
-      .section-title { background: #000; color: #fff; text-align: center; font-weight: bold; font-size: 11px; padding: 3px; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
-      .cognitive-table { width: 100%; border-collapse: collapse; font-size: 10px; }
-      .cognitive-table th, .cognitive-table td { border: 1px solid #000; padding: 2px 4px; text-align: center; vertical-align: middle; }
-      .cognitive-table .subject-col { text-align: left; }
-      .cognitive-table thead th { background: #d0d0d0; font-weight: bold; font-size: 9.5px; }
-      .cognitive-table tbody tr { height: 17px; }
-      .cognitive-table .total-row td { font-weight: bold; background: #ebebeb; }
-      .sig-img { height: 32px; max-width: 90px; object-fit: contain; display: block; margin: auto; }
-      .bottom-section { display: flex; gap: 6px; margin-top: 6px; }
-      .bottom-left { flex: 1.6; }
-      .bottom-right { flex: 1; }
-      .summary-line { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 5px; font-size: 10.5px; }
-      .summary-label { white-space: nowrap; font-weight: bold; }
-      .summary-value { flex: 1; border-bottom: 1px solid #000; min-width: 60px; }
-      .comment-block { margin-bottom: 6px; font-size: 10px; }
-      .comment-label { font-weight: bold; }
-      .comment-text { border-bottom: 1px solid #000; min-height: 14px; margin: 2px 0; font-size: 10px; }
-      .comment-line { border-bottom: 1px solid #000; height: 14px; margin: 2px 0; }
-      .sig-row { display: flex; justify-content: flex-end; align-items: flex-end; gap: 4px; margin-top: 2px; font-size: 9px; }
-      .sig-line { border-bottom: 1px solid #000; width: 100px; }
-      .affective-title { background: #000; color: #fff; text-align: center; font-weight: bold; font-size: 9px; padding: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-      .affective-table { width: 100%; border-collapse: collapse; font-size: 9px; }
-      .affective-table th, .affective-table td { border: 1px solid #000; padding: 2px 3px; text-align: center; }
-      .affective-table .act-col { text-align: left; font-size: 9px; }
-      .affective-table thead th { background: #d0d0d0; font-weight: bold; }
-      .affective-table tbody tr { height: 14px; }
-      .rating-key { font-size: 8px; margin-top: 3px; line-height: 1.5; }
-      .promoted-row { margin-top: 8px; font-size: 10.5px; font-weight: bold; border-top: 1px solid #000; padding-top: 4px; }
-      .principal-sig { text-align: right; margin-top: 6px; font-size: 10px; border-top: 1px solid #000; padding-top: 4px; }
+
+      /* ── Header: logo | school info | passport ── */
+      .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 6px; border-bottom: 3px double #000; margin-bottom: 4px; }
+      .header-logo { width: 72px; height: 72px; flex-shrink: 0; }
+      .header-logo img { width: 72px; height: 72px; object-fit: contain; }
+      .header-logo-placeholder { width: 72px; height: 72px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; text-align: center; padding: 4px; line-height: 1.2; }
+      .header-center { flex: 1; text-align: center; padding: 0 10px; }
+      .header-center h1 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
+      .header-center .addr { font-size: 10px; margin-top: 3px; }
+      .header-passport { width: 72px; height: 85px; flex-shrink: 0; border: 1.5px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #555; text-align: center; overflow: hidden; }
+      .header-passport img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+      /* ── Report title ── */
+      .report-title { text-align: center; font-size: 12px; font-weight: bold; text-decoration: underline; text-transform: uppercase; margin: 5px 0 4px; letter-spacing: 0.5px; }
+
+      /* ── Student info rows ── */
+      .info-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 3px; }
+      .info-table td { border: 1px solid #000; padding: 2px 5px; }
+      .info-label { font-weight: bold; white-space: nowrap; }
+      .info-val { border-bottom: 1px solid #000; display: inline-block; min-width: 80px; }
+
+      /* ── Cognitive domain ── */
+      .section-bar { background: #000; color: #fff; text-align: center; font-weight: bold; font-size: 10.5px; padding: 2px 4px; text-transform: uppercase; letter-spacing: 1px; margin: 4px 0 0; }
+      .cog-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+      .cog-table th, .cog-table td { border: 1px solid #000; padding: 1.5px 3px; text-align: center; vertical-align: middle; }
+      .cog-table thead th { background: #c8c8c8; font-weight: bold; font-size: 9px; }
+      .cog-table .subj { text-align: left; width: 22%; }
+      .cog-table tbody tr { height: 15px; }
+      .cog-table .total-row td { font-weight: bold; background: #e8e8e8; }
+
+      /* ── Bottom split ── */
+      .bottom { display: flex; gap: 6px; margin-top: 5px; align-items: flex-start; }
+      .bottom-left { flex: 1.7; }
+      .bottom-right { width: 210px; flex-shrink: 0; }
+
+      /* ── Comments ── */
+      .avg-row { font-size: 10px; font-weight: bold; margin-bottom: 6px; display: flex; gap: 4px; align-items: flex-end; }
+      .avg-line { flex: 1; border-bottom: 1px solid #000; }
+      .comment-block { margin-bottom: 5px; font-size: 10px; }
+      .comment-block .clabel { font-weight: bold; }
+      .comment-block .ctext { border-bottom: 1px solid #000; min-height: 13px; font-size: 9.5px; padding: 1px 0; }
+      .comment-block .cline { border-bottom: 1px solid #000; height: 13px; margin-top: 2px; }
+      .sig-row { text-align: right; font-size: 9px; margin-top: 2px; }
+      .sig-line { display: inline-block; border-bottom: 1px solid #000; width: 90px; margin-left: 4px; }
+      .promoted { margin-top: 7px; font-size: 10px; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; }
+
+      /* ── Affective ── */
+      .aff-title { background: #000; color: #fff; text-align: center; font-weight: bold; font-size: 8.5px; padding: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+      .aff-table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
+      .aff-table th, .aff-table td { border: 1px solid #000; padding: 1.5px 2px; text-align: center; vertical-align: middle; }
+      .aff-table .arow { text-align: left; font-size: 8px; }
+      .aff-table thead th { background: #c8c8c8; font-weight: bold; font-size: 8px; }
+      .aff-table tbody tr { height: 13px; }
+      .aff-key { font-size: 7.5px; margin-top: 3px; line-height: 1.6; }
+
+      /* ── Principal sig ── */
+      .prin-sig { text-align: right; margin-top: 8px; font-size: 9.5px; border-top: 1px solid #000; padding-top: 4px; }
+
+      /* ── Teacher initials img ── */
+      .sig-img { height: 24px; max-width: 70px; object-fit: contain; display: block; margin: auto; }
     `;
 
     let pages = "";
@@ -258,14 +276,13 @@ export default function AdminPage({ toast, school = {} }) {
         const sigImg = tc.signature ? `<img src="${tc.signature}" class="sig-img" alt="sig"/>` : "";
 
         subjectRows += `<tr>
-          <td class="subject-col">${sub.name}</td>
+          <td class="subj">${sub.name}</td>
           <td>${t1 !== "" ? t1 : ""}</td>
           <td>${t2 !== "" ? t2 : ""}</td>
           <td>${exam !== "" ? exam : ""}</td>
           <td>${hasScore ? total : ""}</td>
-          <td></td>
           <td>${grade}</td>
-          <td style="font-size:9px;text-align:left">${tc.comment || ""}</td>
+          <td style="font-size:8.5px;text-align:left;padding:1px 3px">${tc.comment || ""}</td>
           <td>${sigImg}</td>
         </tr>`;
       });
@@ -282,98 +299,122 @@ export default function AdminPage({ toast, school = {} }) {
         return `<tr><td class="act-col">${b}</td>${cells}</tr>`;
       }).join("");
 
+      const passportSrc = info.passport || "";
+
       pages += `<div class="page">
-        <div class="school-header">
-          <div class="school-logo-wrap">
+
+        <!-- ══ HEADER ══ -->
+        <div class="header">
+          <div class="header-logo">
             ${schoolLogo
-              ? `<img src="${schoolLogo}" class="school-logo-img" alt="logo"/>`
-              : `<div class="school-logo-text">${schoolName.substring(0, 10)}</div>`
-            }
+              ? `<img src="${schoolLogo}" alt="logo" style="width:72px;height:72px;object-fit:contain;"/>`
+              : `<div class="header-logo-placeholder">${schoolName.substring(0,12)}</div>`}
           </div>
-          <div class="school-name">
+          <div class="header-center">
             <h1>${schoolName.toUpperCase()}</h1>
-            <div class="address">${schoolAddress}</div>
-            ${principalName ? `<div class="address" style="font-weight:bold;">Principal: ${principalName}</div>` : ""}
+            <div class="addr">${schoolAddress}</div>
+          </div>
+          <div class="header-passport">
+            ${passportSrc
+              ? `<img src="${passportSrc}" alt="passport"/>`
+              : `Passport<br/>Photo`}
           </div>
         </div>
-        <div class="report-title">Students Termly Report Sheet</div>
 
-        <div class="info-grid">
-          <div class="info-cell">Name: <span class="info-line">${student.name}</span></div>
-          <div class="info-cell">Adm. No.: <span class="info-line">${info.admNo || ""}</span></div>
-          <div class="info-cell">Class: <span class="info-line">${cls}</span></div>
-          <div class="info-cell">Sex: <span class="info-line">${info.sex || ""}</span></div>
-        </div>
-        <div class="info-row2">
-          <div class="info-cell">Form Position this Term: <strong>${position}</strong></div>
-          <div class="info-cell">Out of: <strong>${totalStudents}</strong></div>
-          <div class="info-cell">Term: <span class="info-line">${info.term || ""}</span></div>
-        </div>
+        <!-- ══ TITLE ══ -->
+        <div class="report-title">J.S.S Students Termly Report Sheet</div>
 
-        <div class="section-title">Cognitive Domain</div>
-        <table class="cognitive-table">
+        <!-- ══ STUDENT INFO ══ -->
+        <table class="info-table">
+          <tr>
+            <td style="width:40%"><span class="info-label">Name: </span><span class="info-val">${student.name}</span></td>
+            <td style="width:20%"><span class="info-label">Adm. No.: </span><span class="info-val">${info.admNo || ""}</span></td>
+            <td style="width:20%"><span class="info-label">Class: </span><span class="info-val">${cls}</span></td>
+            <td style="width:20%"><span class="info-label">Sex: </span><span class="info-val">${info.sex || ""}</span></td>
+          </tr>
+          <tr>
+            <td><span class="info-label">Form Position this Term: </span><span class="info-val">${position}</span></td>
+            <td><span class="info-label">Out of: </span><span class="info-val">${totalStudents}</span></td>
+            <td colspan="2"><span class="info-label">Term: </span><span class="info-val">${info.term || ""}</span></td>
+          </tr>
+        </table>
+
+        <!-- ══ COGNITIVE DOMAIN ══ -->
+        <div class="section-bar">Cognitive Domain</div>
+        <table class="cog-table">
           <thead>
             <tr>
-              <th rowspan="2" style="width:20%">SUBJECTS</th>
-              <th>1st C.A.</th><th>2nd C.A.</th><th>EXAM MARKS</th>
-              <th>TOTAL MARKS 100%</th><th style="width:5%">POS</th>
-              <th>GRADE</th><th style="width:20%">TEACHER'S COMMENT</th>
-              <th style="width:9%">TEACHER'S INITIALS</th>
+              <th class="subj" rowspan="2">SUBJECTS</th>
+              <th style="width:6%">1st<br/>C.A.</th>
+              <th style="width:6%">2nd<br/>C.A.</th>
+              <th style="width:9%">EXAM<br/>MARKS</th>
+              <th style="width:9%">TOTAL<br/>100%</th>
+              <th style="width:6%">GRADE</th>
+              <th style="width:22%">TEACHER'S COMMENT</th>
+              <th style="width:8%">TEACHER'S<br/>INITIALS</th>
             </tr>
           </thead>
           <tbody>
             ${subjectRows}
             <tr class="total-row">
-              <td class="subject-col" style="text-align:left">TOTAL MARKS</td>
+              <td class="subj"><strong>TOTAL MARKS</strong></td>
               <td></td><td></td><td></td>
-              <td>${grandTotal || ""}</td>
-              <td></td><td></td><td></td><td></td>
+              <td><strong>${grandTotal || ""}</strong></td>
+              <td></td><td></td><td></td>
             </tr>
           </tbody>
         </table>
 
-        <div class="bottom-section">
+        <!-- ══ BOTTOM ══ -->
+        <div class="bottom">
+          <!-- Left: comments -->
           <div class="bottom-left">
-            <div class="summary-line">
-              <span class="summary-label">Average Percentage:</span>
-              <span class="summary-value">${avgPct ? avgPct + "%" : ""}</span>
-            </div>
+            <div class="avg-row">Average Percentage: <span class="avg-line"></span><strong>${avgPct ? avgPct + "%" : ""}</strong></div>
+
             <div class="comment-block">
-              <div class="comment-label">Form master's Comment(s):</div>
-              <div class="comment-text">${staffC.formMaster || ""}</div>
-              <div class="comment-line"></div>
+              <div class="clabel">Form master's Comment(s):</div>
+              <div class="ctext">${staffC.formMaster || ""}</div>
+              <div class="cline"></div>
               <div class="sig-row">Signature: <span class="sig-line"></span></div>
             </div>
+
             <div class="comment-block">
-              <div class="comment-label">House Mistress Comments (s):</div>
-              <div class="comment-text">${staffC.houseMistress || ""}</div>
-              <div class="comment-line"></div>
+              <div class="clabel">House Mistress Comments (s):</div>
+              <div class="ctext">${staffC.houseMistress || ""}</div>
+              <div class="cline"></div>
               <div class="sig-row">Signature: <span class="sig-line"></span></div>
             </div>
+
             <div class="comment-block">
-              <div class="comment-label">Principal's Comment(s):</div>
-              <div class="comment-text">${staffC.principal || ""}</div>
-              <div class="comment-line"></div>
+              <div class="clabel">Principal's Comment(s):</div>
+              <div class="ctext">${staffC.principal || ""}</div>
+              <div class="cline"></div>
             </div>
-            <div class="promoted-row">Promoted/Not Promoted: ___________________________</div>
+
+            <div class="promoted">Promoted/Not Promoted: ______________________________</div>
           </div>
+
+          <!-- Right: affective -->
           <div class="bottom-right">
-            <div class="affective-title">Affective &amp; Psychomotor Domains Ratings</div>
-            <table class="affective-table">
+            <div class="aff-title">Affective &amp; Psychomotor Domains Ratings</div>
+            <table class="aff-table">
               <thead>
                 <tr>
-                  <th class="act-col">BEHAVIOUR AND ACTIVITIES</th>
+                  <th class="arow">BEHAVIOUR AND ACTIVITIES</th>
                   <th>A</th><th>B</th><th>C</th><th>D</th><th>E</th>
                 </tr>
               </thead>
               <tbody>${affRows}</tbody>
             </table>
-            <div class="rating-key">
+            <div class="aff-key">
               <b>KEY TO RATING:</b> A = Excellent &nbsp; B = Good &nbsp; C = Fair<br/>D = Poor &nbsp; E = V. Poor
             </div>
           </div>
         </div>
-        <div class="principal-sig">________________________________<br/>Principal's Signature</div>
+
+        <!-- ══ PRINCIPAL SIGNATURE ══ -->
+        <div class="prin-sig">________________________________<br/>Principal's Signature</div>
+
       </div>`;
     });
 
@@ -625,6 +666,27 @@ export default function AdminPage({ toast, school = {} }) {
             <option value="Female">Female</option>
           </SelectField>
           <Input label="Term" value={editInfo.term} onChange={(e) => setEditInfo((p) => ({ ...p, term: e.target.value }))} placeholder="e.g. First Term 2024/2025" />
+
+          {/* Passport Photo */}
+          <div>
+            <label style={{ fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>Passport Photo</label>
+            {editInfo.passport && (
+              <img src={editInfo.passport} alt="passport" style={{ width: 80, height: 90, objectFit: "cover", border: "2px solid #ccc", borderRadius: 4, display: "block", marginBottom: 6 }} />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              style={{ fontSize: 12 }}
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const { compressImage } = await import("../../utils/imageUtils");
+                const compressed = await compressImage(file, 200, 0.8);
+                setEditInfo((p) => ({ ...p, passport: compressed }));
+              }}
+            />
+            <p style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Appears on the printed report card. Use a clear face photo.</p>
+          </div>
           <div className={styles.modalActions}>
             <Button variant="outline" onClick={() => setEditStudentModal(null)}>Cancel</Button>
             <Button variant="emerald" onClick={saveStudentInfo}>💾 Save Info</Button>
