@@ -51,6 +51,7 @@ export default function AdminPage({ toast, school = {} }) {
   const [newStudent, setNewStudent] = useState({ name: "", class: "" });
   const [newTeacher, setNewTeacher] = useState({ name: "", subjects: [] });
   const [newSubject, setNewSubject] = useState("");
+  const [newSubjectSection, setNewSubjectSection] = useState("JSS");
 
   // Edit student info form
   const [editInfo, setEditInfo] = useState({ admNo: "", sex: "", term: "", passport: "" });
@@ -886,6 +887,143 @@ export default function AdminPage({ toast, school = {} }) {
           </div>
         </div>
       </Modal>
+
+      {/* ══════════════ PAST TERMS TAB ══════════════ */}
+      {activeTab === "pastterms" && (() => {
+        if (!pastTermsLoaded) { loadPastTerms(); }
+        return (
+          <div className="anim-fade-up">
+            <Card>
+              <div className={styles.cardTopRow}>
+                <span className={styles.cardTitle}>📂 Past Terms Archive</span>
+                <Button size="sm" variant="outline" onClick={() => { setPastTermsLoaded(false); loadPastTerms(); }}>🔄 Refresh</Button>
+              </div>
+              {!pastTermsLoaded ? (
+                <p style={{ padding: 20, color: "#64748b" }}>Loading past terms…</p>
+              ) : pastTerms.length === 0 ? (
+                <div style={{ padding: "40px 20px", textAlign: "center", color: "#64748b" }}>
+                  <div style={{ fontSize: 40 }}>📭</div>
+                  <p style={{ marginTop: 12 }}>No archived terms yet. Use the <strong>📦 End of Term</strong> button to archive your first term.</p>
+                </div>
+              ) : (
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr><th>#</th><th>Term</th><th>Students</th><th>Subjects</th><th>Archived On</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                      {pastTerms.map((term, i) => (
+                        <tr key={term.id}>
+                          <td>{i + 1}</td>
+                          <td className={styles.bold}>{term.termLabel}</td>
+                          <td>{(term.students || []).length}</td>
+                          <td>{(term.subjects || []).length}</td>
+                          <td className={styles.muted}>{new Date(term.archivedAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })}</td>
+                          <td className={styles.actionCell}>
+                            <Button size="sm" variant="sky" onClick={() => setViewingTerm(term)}>👁️ View & Print</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
+        );
+      })()}
+
+      {/* ══ ARCHIVE MODAL ══ */}
+      {archiveModal && (
+        <Modal title={archiveStep === 1 ? "📦 End of Term" : "✅ Term Archived!"} onClose={() => { setArchiveModal(false); setArchiveStep(1); }}>
+          {archiveStep === 1 ? (
+            <div style={{ padding: "0 0 8px" }}>
+              <div style={{ background: "#fef3c7", border: "1.5px solid #f59e0b", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13, color: "#78350f" }}>
+                ⚠️ This will <strong>save all current scores, comments and ratings</strong> to the archive, then <strong>clear the result book</strong> ready for the next term. Students, teachers and subjects will stay.
+              </div>
+              <Input label="Term Name" value={archiveLabel} onChange={(e) => { setArchiveLabel(e.target.value); setArchiveErr(""); }} placeholder="e.g. First Term 2024/2025" />
+              <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>This label will appear in the Past Terms archive.</p>
+              {archiveErr && <div style={{ background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginTop: 10 }}>⚠️ {archiveErr}</div>}
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+                <Button variant="outline" onClick={() => setArchiveModal(false)} disabled={archiveBusy}>Cancel</Button>
+                <Button variant="red" onClick={handleArchiveAndReset} disabled={archiveBusy}>
+                  {archiveBusy ? "Archiving…" : "📦 Archive & Reset for New Term"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "10px 0 20px" }}>
+              <div style={{ fontSize: 52 }}>🎉</div>
+              <h3 style={{ margin: "12px 0 8px", color: "#0f172a" }}>"{archiveLabel}" archived!</h3>
+              <p style={{ color: "#64748b", fontSize: 14, maxWidth: 340, margin: "0 auto 20px" }}>
+                All scores and comments have been saved. The result book is now clean and ready for the next term.
+              </p>
+              <Button variant="emerald" onClick={() => { setArchiveModal(false); setArchiveStep(1); setActiveTab("pastterms"); setPastTermsLoaded(false); loadPastTerms(); }}>
+                📂 View Past Terms
+              </Button>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* ══ VIEW PAST TERM MODAL ══ */}
+      {viewingTerm && (
+        <Modal title={`📋 Results — ${viewingTerm.termLabel}`} onClose={() => setViewingTerm(null)}>
+          <div style={{ padding: "0 0 8px" }}>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
+              Archived on {new Date(viewingTerm.archivedAt).toLocaleDateString("en-GB", { weekday:"long", day:"2-digit", month:"long", year:"numeric" })} · {(viewingTerm.students||[]).length} students · {(viewingTerm.subjects||[]).length} subjects
+            </p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#0f172a", color: "#fff" }}>
+                    <th style={{ padding: "8px 10px", textAlign: "left" }}>Student</th>
+                    <th style={{ padding: "8px 10px" }}>Class</th>
+                    {(viewingTerm.subjects||[]).map((s) => (
+                      <th key={s.id} style={{ padding: "8px 6px", fontSize: 11 }}>{s.name}</th>
+                    ))}
+                    <th style={{ padding: "8px 10px" }}>Total</th>
+                    <th style={{ padding: "8px 10px" }}>Position</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(viewingTerm.students||[]).map((stu, i) => {
+                    let grandTotal = 0;
+                    return (
+                      <tr key={stu.id} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff" }}>
+                        <td style={{ padding: "7px 10px", fontWeight: 700 }}>{stu.name}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "center" }}>{stu.class}</td>
+                        {(viewingTerm.subjects||[]).map((sub) => {
+                          const sc = ((viewingTerm.scores||{})[stu.id]||{})[sub.id]||{};
+                          const total = (Number(sc.t1)||0)+(Number(sc.t2)||0)+(Number(sc.exam)||0);
+                          if (sc.t1 !== undefined) grandTotal += total;
+                          return <td key={sub.id} style={{ padding: "7px 6px", textAlign: "center" }}>{sc.t1 !== undefined ? total : "—"}</td>;
+                        })}
+                        <td style={{ padding: "7px 10px", textAlign: "center", fontWeight: 700 }}>{grandTotal || "—"}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "center" }}>
+                          {(() => {
+                            const classMates = (viewingTerm.students||[]).filter(s=>s.class===stu.class);
+                            const ranked = rankStudents(classMates, viewingTerm.scores||{});
+                            return ranked.find(r=>r.id===stu.id)?.pos ?? "—";
+                          })()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <Button variant="gold" onClick={() => {
+                const origDB = window.__printDB__;
+                window.__printDB__ = viewingTerm;
+                printResults();
+                window.__printDB__ = origDB;
+              }}>🖨️ Print This Term's Results</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1059,149 +1197,3 @@ function SchoolProfileTab({ school, toast }) {
     </div>
   );
 }
-
-      {/* ══════════════ PAST TERMS TAB ══════════════ */}
-      {activeTab === "pastterms" && (() => {
-        // Load on first visit
-        if (!pastTermsLoaded) { loadPastTerms(); }
-        return (
-          <div className="anim-fade-up">
-            <Card>
-              <div className={styles.cardTopRow}>
-                <span className={styles.cardTitle}>📂 Past Terms Archive</span>
-                <Button size="sm" variant="outline" onClick={() => { setPastTermsLoaded(false); loadPastTerms(); }}>🔄 Refresh</Button>
-              </div>
-              {!pastTermsLoaded ? (
-                <p style={{ padding: 20, color: "#64748b" }}>Loading past terms…</p>
-              ) : pastTerms.length === 0 ? (
-                <div style={{ padding: "40px 20px", textAlign: "center", color: "#64748b" }}>
-                  <div style={{ fontSize: 40 }}>📭</div>
-                  <p style={{ marginTop: 12 }}>No archived terms yet. Use the <strong>📦 End of Term</strong> button to archive your first term.</p>
-                </div>
-              ) : (
-                <div className={styles.tableWrap}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>#</th><th>Term</th><th>Students</th><th>Subjects</th><th>Archived On</th><th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pastTerms.map((term, i) => (
-                        <tr key={term.id}>
-                          <td>{i + 1}</td>
-                          <td className={styles.bold}>{term.termLabel}</td>
-                          <td>{(term.students || []).length}</td>
-                          <td>{(term.subjects || []).length}</td>
-                          <td className={styles.muted}>{new Date(term.archivedAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })}</td>
-                          <td className={styles.actionCell}>
-                            <Button size="sm" variant="sky" onClick={() => setViewingTerm(term)}>👁️ View & Print</Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
-          </div>
-        );
-      })()}
-
-      {/* ══ ARCHIVE MODAL ══ */}
-      {archiveModal && (
-        <Modal title={archiveStep === 1 ? "📦 End of Term" : "✅ Term Archived!"} onClose={() => { setArchiveModal(false); setArchiveStep(1); }}>
-          {archiveStep === 1 ? (
-            <div style={{ padding: "0 0 8px" }}>
-              <div style={{ background: "#fef3c7", border: "1.5px solid #f59e0b", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13, color: "#78350f" }}>
-                ⚠️ This will <strong>save all current scores, comments and ratings</strong> to the archive, then <strong>clear the result book</strong> ready for the next term. Students, teachers and subjects will stay.
-              </div>
-              <Input
-                label="Term Name"
-                value={archiveLabel}
-                onChange={(e) => { setArchiveLabel(e.target.value); setArchiveErr(""); }}
-                placeholder="e.g. First Term 2024/2025"
-              />
-              <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>This label will appear in the Past Terms archive.</p>
-              {archiveErr && <div style={{ background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginTop: 10 }}>⚠️ {archiveErr}</div>}
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
-                <Button variant="outline" onClick={() => setArchiveModal(false)} disabled={archiveBusy}>Cancel</Button>
-                <Button variant="red" onClick={handleArchiveAndReset} disabled={archiveBusy}>
-                  {archiveBusy ? "Archiving…" : "📦 Archive & Reset for New Term"}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ textAlign: "center", padding: "10px 0 20px" }}>
-              <div style={{ fontSize: 52 }}>🎉</div>
-              <h3 style={{ margin: "12px 0 8px", color: "#0f172a" }}>"{archiveLabel}" archived!</h3>
-              <p style={{ color: "#64748b", fontSize: 14, maxWidth: 340, margin: "0 auto 20px" }}>
-                All scores and comments have been saved. The result book is now clean and ready for the next term.
-              </p>
-              <Button variant="emerald" onClick={() => { setArchiveModal(false); setArchiveStep(1); setActiveTab("pastterms"); setPastTermsLoaded(false); loadPastTerms(); }}>
-                📂 View Past Terms
-              </Button>
-            </div>
-          )}
-        </Modal>
-      )}
-
-      {/* ══ VIEW PAST TERM MODAL ══ */}
-      {viewingTerm && (
-        <Modal title={`📋 Results — ${viewingTerm.termLabel}`} onClose={() => setViewingTerm(null)}>
-          <div style={{ padding: "0 0 8px" }}>
-            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
-              Archived on {new Date(viewingTerm.archivedAt).toLocaleDateString("en-GB", { weekday:"long", day:"2-digit", month:"long", year:"numeric" })} · {(viewingTerm.students||[]).length} students · {(viewingTerm.subjects||[]).length} subjects
-            </p>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "#0f172a", color: "#fff" }}>
-                    <th style={{ padding: "8px 10px", textAlign: "left" }}>Student</th>
-                    <th style={{ padding: "8px 10px" }}>Class</th>
-                    {(viewingTerm.subjects||[]).map((s) => (
-                      <th key={s.id} style={{ padding: "8px 6px", fontSize: 11 }}>{s.name}</th>
-                    ))}
-                    <th style={{ padding: "8px 10px" }}>Total</th>
-                    <th style={{ padding: "8px 10px" }}>Position</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(viewingTerm.students||[]).map((stu, i) => {
-                    let grandTotal = 0;
-                    return (
-                      <tr key={stu.id} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff" }}>
-                        <td style={{ padding: "7px 10px", fontWeight: 700 }}>{stu.name}</td>
-                        <td style={{ padding: "7px 10px", textAlign: "center" }}>{stu.class}</td>
-                        {(viewingTerm.subjects||[]).map((sub) => {
-                          const sc = ((viewingTerm.scores||{})[stu.id]||{})[sub.id]||{};
-                          const total = (Number(sc.t1)||0)+(Number(sc.t2)||0)+(Number(sc.exam)||0);
-                          if (sc.t1 !== undefined) grandTotal += total;
-                          return <td key={sub.id} style={{ padding: "7px 6px", textAlign: "center" }}>{sc.t1 !== undefined ? total : "—"}</td>;
-                        })}
-                        <td style={{ padding: "7px 10px", textAlign: "center", fontWeight: 700 }}>{grandTotal || "—"}</td>
-                        <td style={{ padding: "7px 10px", textAlign: "center" }}>
-                          {(() => {
-                            const classMates = (viewingTerm.students||[]).filter(s=>s.class===stu.class);
-                            const ranked = rankStudents(classMates, viewingTerm.scores||{});
-                            return ranked.find(r=>r.id===stu.id)?.pos ?? "—";
-                          })()}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-              <Button variant="gold" onClick={() => {
-                // Temporarily swap DB data for printing archived term
-                const origDB = window.__printDB__;
-                window.__printDB__ = viewingTerm;
-                printResults();
-                window.__printDB__ = origDB;
-              }}>🖨️ Print This Term's Results</Button>
-            </div>
-          </div>
-        </Modal>
-      )}
