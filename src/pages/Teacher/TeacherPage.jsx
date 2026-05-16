@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDB } from "../../context/DBContext";
-import { getClasses } from "../../utils/grades";
+import { getClasses, getTeacherSubjectIds, getSubjectsForClass } from "../../utils/grades";
 import StudentCard from "../../components/teacher/StudentCard";
 import ScoreEntryForm from "../../components/teacher/ScoreEntryForm";
 import StaffCommentPanel from "../../components/teacher/StaffCommentPanel";
@@ -8,23 +8,39 @@ import styles from "./TeacherPage.module.css";
 
 export default function TeacherPage({ teacher, toast }) {
   const { db, updateDB } = useDB();
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [classFilter, setClassFilter] = useState("");
-  const [activeSection, setActiveSection] = useState("scores");
 
-  const subject  = db.subjects.find((s) => s.id === teacher.subject);
-  const classes  = getClasses(db.students);
-  const filteredStudents = db.students.filter((s) => !classFilter || s.class === classFilter);
-  const scoredCount = db.students.filter(
-    (s) => (db.scores[s.id] || {})[subject?.id]?.t1 !== undefined
+  // Teacher may now have multiple subjects
+  const subjectIds   = getTeacherSubjectIds(teacher);
+  const allSubjects  = db.subjects.filter((s) => subjectIds.includes(s.id));
+
+  // Which subject is the teacher currently entering scores for?
+  const [activeSubjectId, setActiveSubjectId] = useState(allSubjects[0]?.id || "");
+  const activeSubject = db.subjects.find((s) => s.id === activeSubjectId) || allSubjects[0];
+
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [classFilter,     setClassFilter]     = useState("");
+  const [activeSection,   setActiveSection]   = useState("scores");
+
+  const classes = getClasses(db.students);
+
+  // Only show students whose class has this subject in scope
+  const eligibleStudents = db.students.filter((s) => {
+    if (classFilter && s.class !== classFilter) return false;
+    if (!activeSubject) return false;
+    const classSubjs = getSubjectsForClass(db.subjects, s.class);
+    return classSubjs.some((sub) => sub.id === activeSubject.id);
+  });
+
+  const scoredCount = eligibleStudents.filter(
+    (s) => (db.scores[s.id] || {})[activeSubject?.id]?.t1 !== undefined
   ).length;
 
-  // Derive extra roles dynamically from DB (so role changes take effect without re-login)
-  const roles = db.roles || {};
+  // Extra roles (form master, house mistress, principal)
+  const roles      = db.roles || {};
   const extraRoles = [];
-  if (roles.formMaster === teacher.id)    extraRoles.push("formMaster");
+  if (roles.formMaster    === teacher.id) extraRoles.push("formMaster");
   if (roles.houseMistress === teacher.id) extraRoles.push("houseMistress");
-  if (roles.principal === teacher.id)     extraRoles.push("principal");
+  if (roles.principal     === teacher.id) extraRoles.push("principal");
   const hasRoles = extraRoles.length > 0;
 
   const ROLE_LABELS = {
@@ -39,30 +55,32 @@ export default function TeacherPage({ teacher, toast }) {
   }
 
   function handleSaveScore({ scores, comment, signature }) {
+    if (!activeSubject) return;
     updateDB((d) => {
       if (!d.scores[selectedStudent.id]) d.scores[selectedStudent.id] = {};
-      d.scores[selectedStudent.id][subject.id] = scores;
+      d.scores[selectedStudent.id][activeSubject.id] = scores;
       if (!d.teacherComments) d.teacherComments = {};
       if (!d.teacherComments[selectedStudent.id]) d.teacherComments[selectedStudent.id] = {};
-      d.teacherComments[selectedStudent.id][subject.id] = { comment, signature };
+      d.teacherComments[selectedStudent.id][activeSubject.id] = { comment, signature };
       return d;
     });
-    toast(`✅ Score saved for ${selectedStudent.name}!`);
+    toast(`✅ ${activeSubject.name} score saved for ${selectedStudent.name}!`);
     setSelectedStudent(null);
   }
 
-  if (!subject) {
+  // No subjects assigned at all
+  if (allSubjects.length === 0) {
     return (
       <div className={styles.noSubject}>
         <div className={styles.noSubjectIcon}>⚠️</div>
         <h2>No Subject Assigned</h2>
-        <p>Your account has no subject assigned. Please contact your admin.</p>
+        <p>Your account has no subject assigned yet. Please contact your admin.</p>
       </div>
     );
   }
 
-  const existingScore   = selectedStudent ? (db.scores[selectedStudent.id] || {})[subject.id] : null;
-  const existingComment = selectedStudent ? ((db.teacherComments || {})[selectedStudent.id] || {})[subject.id] : null;
+  const existingScore   = selectedStudent ? (db.scores[selectedStudent.id] || {})[activeSubject?.id] : null;
+  const existingComment = selectedStudent ? ((db.teacherComments || {})[selectedStudent.id] || {})[activeSubject?.id] : null;
 
   return (
     <div className={styles.page}>
@@ -72,82 +90,115 @@ export default function TeacherPage({ teacher, toast }) {
         </div>
       )}
 
-      {/* Section switcher — only shown if teacher has a staff role too */}
+      {/* ── Section switcher (scores vs staff comments) ── */}
       {hasRoles && !selectedStudent && (
         <div className={styles.sectionTabs}>
           <button
             className={[styles.sectionTab, activeSection === "scores" ? styles.sectionTabActive : ""].join(" ")}
             onClick={() => setActiveSection("scores")}
-          >
-            📝 Scores — {subject.name}
-          </button>
-          <button
-            className={[styles.sectionTab, activeSection === "comments" ? styles.sectionTabActive : ""].join(" ")}
-            onClick={() => setActiveSection("comments")}
-          >
-            💬 Staff Comments ({extraRoles.map((r) => ROLE_LABELS[r]).join(", ")})
-          </button>
+          >📝 Score Entry</button>
+          {extraRoles.map((r) => (
+            <button key={r}
+              className={[styles.sectionTab, activeSection === r ? styles.sectionTabActive : ""].join(" ")}
+              onClick={() => setActiveSection(r)}
+            >🗣 {ROLE_LABELS[r]} Comments</button>
+          ))}
         </div>
       )}
 
-      {selectedStudent ? (
-        /* ── Score + Comment Entry ── */
-        <ScoreEntryForm
-          student={selectedStudent}
-          subject={subject}
-          existingScore={existingScore}
-          existingComment={existingComment}
-          locked={db.locked}
-          onSave={handleSaveScore}
-          onBack={() => setSelectedStudent(null)}
-        />
-      ) : activeSection === "comments" && hasRoles ? (
-        /* ── Staff Comment Panel ── */
-        <StaffCommentPanel teacher={teacher} extraRoles={extraRoles} toast={toast} />
-      ) : (
-        /* ── Student Grid ── */
+      {/* ══ SCORE ENTRY SECTION ══ */}
+      {(activeSection === "scores" || !hasRoles) && !selectedStudent && (
         <>
-          <div className={styles.subjectBanner}>
-            <div className={styles.bannerIcon}>📖</div>
-            <div className={styles.bannerText}>
-              <div className={styles.bannerSubject}>{subject.name}</div>
-              <div className={styles.bannerSub}>
-                {db.locked ? "⚠️ Results locked — view only" : "Click a student card to enter scores and comments"}
+          {/* ── Subject picker (shown only if teacher has >1 subject) ── */}
+          {allSubjects.length > 1 && (
+            <div className={styles.subjectPickerWrap}>
+              <p className={styles.subjectPickerLabel}>📚 Select subject to enter scores:</p>
+              <div className={styles.subjectPicker}>
+                {allSubjects.map((s) => {
+                  const isActive = s.id === activeSubjectId;
+                  const secColor = s.section === "SSS" ? "#1d4ed8" : s.section === "JSS" ? "#065f46" : "#6d28d9";
+                  const secBg   = s.section === "SSS" ? "#dbeafe" : s.section === "JSS" ? "#d1fae5" : "#f3e8ff";
+                  return (
+                    <button
+                      key={s.id}
+                      className={styles.subjectChip}
+                      style={{
+                        background:   isActive ? secColor : secBg,
+                        color:        isActive ? "#fff"   : secColor,
+                        border:       `2px solid ${secColor}`,
+                        fontWeight:   isActive ? 700 : 600,
+                      }}
+                      onClick={() => { setActiveSubjectId(s.id); setSelectedStudent(null); }}
+                    >
+                      {s.name}
+                      <span style={{ fontSize:10, opacity:0.8, marginLeft:4 }}>({s.section || "All"})</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-            <div className={styles.bannerStats}>
-              <div className={styles.bannerNum}>{scoredCount}/{db.students.length}</div>
-              <div className={styles.bannerNumLabel}>Students Scored</div>
-            </div>
+          )}
+
+          {/* ── Info bar ── */}
+          <div className={styles.infoBar}>
+            <span className={styles.subjectLabel}>
+              📝 {activeSubject?.name}
+              {activeSubject?.section && (
+                <span className={styles.sectionPill}>{activeSubject.section}</span>
+              )}
+            </span>
+            <span className={styles.progressBadge}>{scoredCount}/{eligibleStudents.length} scored</span>
           </div>
 
-          <div className={styles.filterBar}>
+          {/* ── Class filter ── */}
+          <div className={styles.filterRow}>
+            <label className={styles.filterLabel}>Filter by class:</label>
             <select className={styles.filterSelect} value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
               <option value="">All Classes</option>
               {classes.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
-          {!filteredStudents.length ? (
+          {eligibleStudents.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>🎓</div>
-              <p>No students found. Ask your admin to add students.</p>
+              <p>No students found for <strong>{activeSubject?.name}</strong> in {classFilter || "any class"}.</p>
+              <p style={{ fontSize:12, color:"#94a3b8", marginTop:6 }}>This subject may not be assigned to that class section (JSS/SSS).</p>
             </div>
           ) : (
             <div className={styles.grid}>
-              {filteredStudents.map((student) => (
+              {eligibleStudents.map((s) => (
                 <StudentCard
-                  key={student.id}
-                  student={student}
-                  subject={subject}
+                  key={s.id}
+                  student={s}
+                  subject={activeSubject}
                   scores={db.scores}
-                  locked={db.locked}
                   onClick={handleStudentClick}
                 />
               ))}
             </div>
           )}
         </>
+      )}
+
+      {/* ══ STAFF COMMENT SECTIONS ══ */}
+      {hasRoles && extraRoles.map((role) =>
+        activeSection === role && !selectedStudent ? (
+          <StaffCommentPanel key={role} role={role} teacher={teacher} toast={toast} />
+        ) : null
+      )}
+
+      {/* ══ SCORE ENTRY FORM ══ */}
+      {selectedStudent && activeSubject && (
+        <ScoreEntryForm
+          student={selectedStudent}
+          subject={activeSubject}
+          existingScore={existingScore}
+          existingComment={existingComment}
+          onSave={handleSaveScore}
+          onCancel={() => setSelectedStudent(null)}
+          locked={db.locked}
+        />
       )}
     </div>
   );

@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { firestore } from "../../firebase";
-import { getGrade, rankStudents } from "../../utils/grades";
+import { getGrade, rankStudents, getSubjectsForClass } from "../../utils/grades";
 
 const BEHAVIOUR_ROWS = [
   "Punctuality","Attendance in Class","Attentiveness in Class",
@@ -78,7 +78,7 @@ export default function StudentResultPage({ schoolId, studentId }) {
   // ── Ready — render result ────────────────────────────────────────────────
   const cls      = student.class;
   const classmates = (db.students || []).filter((s) => s.class === cls);
-  const ranked   = rankStudents(classmates, db.scores || {});
+  const ranked   = rankStudents(classmates, db.scores || {}, db.subjects || []);
   const myRank   = ranked.find((r) => r.id === studentId);
   const position = myRank?.pos ?? "—";
   const total    = ranked.length;
@@ -86,7 +86,7 @@ export default function StudentResultPage({ schoolId, studentId }) {
   const info     = (db.studentInfo || {})[studentId] || {};
   const staffC   = (db.staffComments || {})[studentId] || {};
   const affData  = (db.affective || {})[studentId] || {};
-  const subjects = db.subjects || [];
+  const subjects = getSubjectsForClass(db.subjects || [], student.class);
 
   let grandTotal = 0;
   const subjectRows = subjects.map((sub) => {

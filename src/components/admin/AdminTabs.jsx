@@ -9,6 +9,7 @@ const TABS = [
   { id: "subjects",  label: "📚 Subjects" },
   { id: "results",   label: "📊 Class Results" },
   { id: "school",    label: "🏫 School Profile" },
+  { id: "pastterms", label: "📂 Past Terms" },
 ];
 
 export default function AdminTabs({ active, onChange }) {

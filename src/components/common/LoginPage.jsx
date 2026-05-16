@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styles from "./LoginPage.module.css";
 
-export default function LoginPage({ portal, onLogin, onSwitchPortal, onGoRegister }) {
+export default function LoginPage({ portal, onLogin, onSwitchPortal }) {
   const isAdmin = portal === "admin";
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
@@ -129,15 +129,7 @@ export default function LoginPage({ portal, onLogin, onSwitchPortal, onGoRegiste
             : isAdmin ? "Sign In to Admin Portal" : "Enter Teacher Portal"}
         </button>
 
-        {/* Register link — only shown on admin tab */}
-        {isAdmin && (
-          <div className={styles.registerRow}>
-            <span className={styles.registerText}>New school?</span>
-            <button className={styles.registerBtn} onClick={onGoRegister} disabled={loading}>
-              Create a free account →
-            </button>
-          </div>
-        )}
+
 
       </div>
     </div>

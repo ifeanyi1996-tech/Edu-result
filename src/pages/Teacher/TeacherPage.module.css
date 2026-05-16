@@ -160,3 +160,19 @@
 .sectionTab { background: none; border: none; padding: 11px 20px; font-family: "Outfit", sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.2s, border-color 0.2s; }
 .sectionTab:hover { color: var(--navy); }
 .sectionTabActive { color: var(--navy); border-bottom-color: var(--teal); }
+
+/* ── Subject picker (multi-subject teachers) ─────────────────────────── */
+.subjectPickerWrap { padding: 16px 20px 0; }
+.subjectPickerLabel { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+.subjectPicker { display: flex; flex-wrap: wrap; gap: 8px; }
+.subjectChip {
+  padding: 7px 16px; border-radius: 20px; cursor: pointer;
+  font-size: 13px; font-family: inherit;
+  transition: all 0.15s ease;
+}
+.subjectChip:hover { filter: brightness(0.9); }
+.sectionPill {
+  display: inline-block; background: #0f172a22; color: inherit;
+  padding: 1px 7px; border-radius: 10px; font-size: 10px;
+  font-weight: 700; margin-left: 6px;
+}

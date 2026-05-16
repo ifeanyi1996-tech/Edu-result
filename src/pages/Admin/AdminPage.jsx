@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { useDB } from "../../context/DBContext";
 import { useSchool } from "../../context/SchoolContext";
 import { compressImage } from "../../utils/imageUtils";
-import { getClasses, rankStudents, getGrade } from "../../utils/grades";
+import { getClasses, rankStudents, getGrade, getSection, getSubjectsForClass, getTeacherSubjectIds } from "../../utils/grades";
 import StatsRow from "../../components/admin/StatsRow";
 import AdminTabs from "../../components/admin/AdminTabs";
 import ClassResultsTable from "../../components/admin/ClassResultsTable";
@@ -10,6 +10,7 @@ import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
 import Modal from "../../components/common/Modal";
 import Input from "../../components/common/Input";
+import { archiveCurrentTerm, fetchArchivedTerms, buildResetDB } from "../../utils/db";
 import SelectField from "../../components/common/SelectField";
 import styles from "./AdminPage.module.css";
 
@@ -36,9 +37,19 @@ export default function AdminPage({ toast, school = {} }) {
   const [affectiveModal, setAffectiveModal] = useState(null);     // student object
   const [rolesModal, setRolesModal] = useState(false);
 
+  // End-of-term archive state
+  const [archiveModal,    setArchiveModal]    = useState(false);
+  const [archiveStep,     setArchiveStep]     = useState(1); // 1=confirm 2=success
+  const [archiveLabel,    setArchiveLabel]    = useState("");
+  const [archiveBusy,     setArchiveBusy]     = useState(false);
+  const [archiveErr,      setArchiveErr]      = useState("");
+  const [pastTerms,       setPastTerms]       = useState([]);
+  const [pastTermsLoaded, setPastTermsLoaded] = useState(false);
+  const [viewingTerm,     setViewingTerm]     = useState(null);
+
   // New item forms
   const [newStudent, setNewStudent] = useState({ name: "", class: "" });
-  const [newTeacher, setNewTeacher] = useState({ name: "", subject: "" });
+  const [newTeacher, setNewTeacher] = useState({ name: "", subjects: [] });
   const [newSubject, setNewSubject] = useState("");
 
   // Edit student info form
@@ -80,13 +91,14 @@ export default function AdminPage({ toast, school = {} }) {
 
   function addTeacher() {
     const name = newTeacher.name.trim();
-    if (!name)               return toast("Teacher name is required.", "error");
-    if (!newTeacher.subject) return toast("Please assign a subject.", "error");
+    if (!name) return toast("Teacher name is required.", "error");
+    if (!newTeacher.subjects || newTeacher.subjects.length === 0)
+      return toast("Please assign at least one subject.", "error");
     if (db.teachers.some((t) => t.name.toLowerCase() === name.toLowerCase()))
       return toast(`⚠️ Teacher "${name}" already exists!`, "error");
     const pin = generateUniquePin();
-    updateDB((d) => { d.teachers.push({ id: Date.now().toString(), name, subject: newTeacher.subject, pin }); return d; });
-    setNewTeacher({ name: "", subject: "" });
+    updateDB((d) => { d.teachers.push({ id: Date.now().toString(), name, subjects: newTeacher.subjects, pin }); return d; });
+    setNewTeacher({ name: "", subjects: [] });
     setTeacherModal(false);
     toast(`✅ Teacher "${name}" added. Login PIN: ${pin}`);
   }
@@ -96,9 +108,9 @@ export default function AdminPage({ toast, school = {} }) {
     if (!name) return toast("Subject name is required.", "error");
     if (db.subjects.some((s) => s.name.toLowerCase() === name.toLowerCase()))
       return toast(`⚠️ Subject "${name}" already exists!`, "error");
-    updateDB((d) => { d.subjects.push({ id: Date.now().toString(), name }); return d; });
+    updateDB((d) => { d.subjects.push({ id: Date.now().toString(), name, section: newSubjectSection }); return d; });
     setNewSubject(""); setSubjectModal(false);
-    toast(`✅ Subject "${name}" added.`);
+    toast(`✅ Subject "${name}" (${newSubjectSection}) added.`);
   }
 
   function deleteStudent(id) {
@@ -116,6 +128,25 @@ export default function AdminPage({ toast, school = {} }) {
     updateDB((d) => { d.subjects = d.subjects.filter((s) => s.id !== id); Object.keys(d.scores).forEach((sid) => delete d.scores[sid][id]); return d; });
     toast("Subject removed.", "info");
   }
+  // ── End of term: archive then reset ────────────────────────────────────
+  async function handleArchiveAndReset() {
+    if (!archiveLabel.trim()) { setArchiveErr("Please enter a term name."); return; }
+    setArchiveBusy(true); setArchiveErr("");
+    const result = await archiveCurrentTerm(db, archiveLabel);
+    if (!result.ok) { setArchiveErr(result.message); setArchiveBusy(false); return; }
+    updateDB(() => buildResetDB(db));
+    setArchiveBusy(false);
+    setArchiveStep(2);
+    setPastTermsLoaded(false);
+  }
+
+  async function loadPastTerms() {
+    if (pastTermsLoaded) return;
+    const terms = await fetchArchivedTerms();
+    setPastTerms(terms);
+    setPastTermsLoaded(true);
+  }
+
   function toggleLock() {
     updateDB((d) => { d.locked = !d.locked; return d; });
     toast(db.locked ? "🔓 Results unlocked!" : "🔒 Results locked!", db.locked ? "success" : "error");
@@ -262,7 +293,8 @@ export default function AdminPage({ toast, school = {} }) {
       let subjectRows = "";
       let grandTotal = 0;
 
-      db.subjects.forEach((sub) => {
+      const studentSubjects = getSubjectsForClass(db.subjects, student.class);
+      studentSubjects.forEach((sub) => {
         const sc = (db.scores[student.id] || {})[sub.id] || {};
         const tc = (db.teacherComments?.[student.id] || {})[sub.id] || {};
         const t1   = sc.t1   !== undefined ? Number(sc.t1)   : "";
@@ -287,7 +319,7 @@ export default function AdminPage({ toast, school = {} }) {
         </tr>`;
       });
 
-      const scoredSubjects = db.subjects.filter((sub) => (db.scores[student.id] || {})[sub.id]?.t1 !== undefined).length;
+      const scoredSubjects = studentSubjects.filter((sub) => (db.scores[student.id] || {})[sub.id]?.t1 !== undefined).length;
       const maxPossible = scoredSubjects * 100;
       const avgPct = maxPossible > 0 ? ((grandTotal / maxPossible) * 100).toFixed(1) : "";
 
@@ -456,6 +488,10 @@ export default function AdminPage({ toast, school = {} }) {
             {db.locked ? "🔓 Unlock Results" : "🔒 Lock Results"}
           </Button>
           <Button variant="gold" onClick={printResults}>🖨️ Print Results</Button>
+          <Button
+            variant="red"
+            onClick={() => { setArchiveModal(true); setArchiveStep(1); setArchiveLabel(""); setArchiveErr(""); }}
+          >📦 End of Term</Button>
         </div>
       </div>
 
@@ -558,12 +594,13 @@ export default function AdminPage({ toast, school = {} }) {
             </div>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
-                <thead><tr><th>#</th><th>Teacher Name</th><th>Assigned Subject</th><th>Role</th><th>Login PIN</th><th>Actions</th></tr></thead>
+                <thead><tr><th>#</th><th>Teacher Name</th><th>Assigned Subjects</th><th>Role</th><th>Login PIN</th><th>Actions</th></tr></thead>
                 <tbody>
                   {!db.teachers.length ? (
                     <tr><td colSpan={6} className={styles.emptyCell}>No teachers yet.</td></tr>
                   ) : db.teachers.map((t, i) => {
-                    const sub = db.subjects.find((s) => s.id === t.subject);
+                    const teacherSubIds = getTeacherSubjectIds(t);
+                    const teacherSubs = db.subjects.filter((s) => teacherSubIds.includes(s.id));
                     const teacherRoles = [];
                     if (roles.formMaster === t.id) teacherRoles.push("Form Master");
                     if (roles.houseMistress === t.id) teacherRoles.push("House Mistress");
@@ -572,7 +609,15 @@ export default function AdminPage({ toast, school = {} }) {
                       <tr key={t.id}>
                         <td>{i + 1}</td>
                         <td className={styles.bold}>{t.name}</td>
-                        <td>{sub ? <span className={styles.subjectBadge}>{sub.name}</span> : <em className={styles.muted}>Unassigned</em>}</td>
+                        <td>
+                          {teacherSubs.length > 0
+                            ? teacherSubs.map((s) => (
+                                <span key={s.id} className={styles.subjectBadge} style={{ marginRight: 4, marginBottom: 2, display: "inline-block", background: s.section === "SSS" ? "#dbeafe" : s.section === "JSS" ? "#d1fae5" : "#f3e8ff" }}>
+                                  {s.name} <span style={{ fontSize: 10, opacity: 0.75 }}>({s.section || "All"})</span>
+                                </span>
+                              ))
+                            : <em className={styles.muted}>Unassigned</em>}
+                        </td>
                         <td>{teacherRoles.length ? teacherRoles.map((r) => <span key={r} className={styles.rolePill}>{r}</span>) : <em className={styles.muted}>—</em>}</td>
                         <td>
                           <div className={styles.pinCell}>
@@ -618,12 +663,17 @@ export default function AdminPage({ toast, school = {} }) {
                   {!db.subjects.length ? (
                     <tr><td colSpan={4} className={styles.emptyCell}>No subjects yet.</td></tr>
                   ) : db.subjects.map((s, i) => {
-                    const teacher = db.teachers.find((t) => t.subject === s.id);
+                    const teachers = db.teachers.filter((t) => getTeacherSubjectIds(t).includes(s.id));
                     return (
                       <tr key={s.id}>
                         <td>{i + 1}</td>
                         <td className={styles.bold}>{s.name}</td>
-                        <td>{teacher ? teacher.name : <em className={styles.muted}>No teacher</em>}</td>
+                        <td>
+                          <span style={{ display:"inline-block", padding:"2px 8px", borderRadius:12, fontSize:11, fontWeight:700, background: s.section === "SSS" ? "#dbeafe" : s.section === "JSS" ? "#d1fae5" : "#f3e8ff", color: s.section === "SSS" ? "#1d4ed8" : s.section === "JSS" ? "#065f46" : "#6d28d9", marginRight:6 }}>
+                            {s.section || "All"}
+                          </span>
+                        </td>
+                        <td>{teachers.length > 0 ? teachers.map(t => t.name).join(", ") : <em className={styles.muted}>No teacher</em>}</td>
                         <td><Button size="sm" variant="red" onClick={() => deleteSubject(s.id)}>🗑 Remove</Button></td>
                       </tr>
                     );
@@ -769,10 +819,47 @@ export default function AdminPage({ toast, school = {} }) {
       <Modal open={teacherModal} onClose={() => setTeacherModal(false)} title="Add New Teacher">
         <div className={styles.modalForm}>
           <Input label="Teacher Name" value={newTeacher.name} onChange={(e) => setNewTeacher((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Mr. Emeka Obi" />
-          <SelectField label="Assigned Subject" value={newTeacher.subject} onChange={(e) => setNewTeacher((p) => ({ ...p, subject: e.target.value }))}>
-            <option value="">— Select Subject —</option>
-            {db.subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </SelectField>
+
+          {/* Multi-subject checkboxes grouped by section */}
+          <div>
+            <label style={{ display:"block", fontWeight:700, fontSize:12, textTransform:"uppercase", letterSpacing:"0.5px", color:"var(--muted)", marginBottom:8 }}>
+              Assigned Subjects <span style={{ fontWeight:400 }}>(tick all that apply)</span>
+            </label>
+            {["JSS","SSS","both"].map((sec) => {
+              const secSubjects = db.subjects.filter((s) => (s.section || "both") === sec);
+              if (!secSubjects.length) return null;
+              const secLabel = sec === "both" ? "All Levels" : sec;
+              const secColor = sec === "SSS" ? "#1d4ed8" : sec === "JSS" ? "#065f46" : "#6d28d9";
+              const secBg    = sec === "SSS" ? "#dbeafe" : sec === "JSS" ? "#d1fae5" : "#f3e8ff";
+              return (
+                <div key={sec} style={{ marginBottom:12 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:secColor, background:secBg, padding:"2px 10px", borderRadius:20, display:"inline-block", marginBottom:6 }}>
+                    {secLabel}
+                  </div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {secSubjects.map((s) => {
+                      const checked = (newTeacher.subjects || []).includes(s.id);
+                      return (
+                        <label key={s.id} style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer", padding:"4px 10px", borderRadius:8, border:`1.5px solid ${checked ? secColor : "#e2e8f0"}`, background: checked ? secBg : "#f8fafc", fontSize:13, fontWeight: checked ? 700 : 400, color: checked ? secColor : "#374151", transition:"all 0.15s" }}>
+                          <input type="checkbox" checked={checked} style={{ accentColor:secColor }}
+                            onChange={() => {
+                              setNewTeacher((p) => {
+                                const arr = p.subjects || [];
+                                return { ...p, subjects: checked ? arr.filter((id) => id !== s.id) : [...arr, s.id] };
+                              });
+                            }}
+                          />
+                          {s.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {db.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
+          </div>
+
           <p className={styles.pinHint}>
             🔐 A unique 6-digit login PIN will be <strong>automatically generated</strong> for this teacher. Share it with them — they can use it to log in from any device.
           </p>
@@ -787,6 +874,12 @@ export default function AdminPage({ toast, school = {} }) {
       <Modal open={subjectModal} onClose={() => setSubjectModal(false)} title="Add New Subject">
         <div className={styles.modalForm}>
           <Input label="Subject Name" value={newSubject} onChange={(e) => setNewSubject(e.target.value)} placeholder="e.g. Mathematics" />
+          <SelectField label="Section (who studies this subject?)" value={newSubjectSection} onChange={(e) => setNewSubjectSection(e.target.value)}>
+            <option value="JSS">JSS only (Junior Secondary)</option>
+            <option value="SSS">SSS only (Senior Secondary)</option>
+            <option value="both">Both JSS and SSS</option>
+          </SelectField>
+          <p className={styles.pinHint}>This ensures JSS results only include JSS subjects and SSS results only include SSS subjects.</p>
           <div className={styles.modalActions}>
             <Button variant="outline" onClick={() => setSubjectModal(false)}>Cancel</Button>
             <Button onClick={addSubject}>Add Subject</Button>
@@ -966,3 +1059,149 @@ function SchoolProfileTab({ school, toast }) {
     </div>
   );
 }
+
+      {/* ══════════════ PAST TERMS TAB ══════════════ */}
+      {activeTab === "pastterms" && (() => {
+        // Load on first visit
+        if (!pastTermsLoaded) { loadPastTerms(); }
+        return (
+          <div className="anim-fade-up">
+            <Card>
+              <div className={styles.cardTopRow}>
+                <span className={styles.cardTitle}>📂 Past Terms Archive</span>
+                <Button size="sm" variant="outline" onClick={() => { setPastTermsLoaded(false); loadPastTerms(); }}>🔄 Refresh</Button>
+              </div>
+              {!pastTermsLoaded ? (
+                <p style={{ padding: 20, color: "#64748b" }}>Loading past terms…</p>
+              ) : pastTerms.length === 0 ? (
+                <div style={{ padding: "40px 20px", textAlign: "center", color: "#64748b" }}>
+                  <div style={{ fontSize: 40 }}>📭</div>
+                  <p style={{ marginTop: 12 }}>No archived terms yet. Use the <strong>📦 End of Term</strong> button to archive your first term.</p>
+                </div>
+              ) : (
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>#</th><th>Term</th><th>Students</th><th>Subjects</th><th>Archived On</th><th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pastTerms.map((term, i) => (
+                        <tr key={term.id}>
+                          <td>{i + 1}</td>
+                          <td className={styles.bold}>{term.termLabel}</td>
+                          <td>{(term.students || []).length}</td>
+                          <td>{(term.subjects || []).length}</td>
+                          <td className={styles.muted}>{new Date(term.archivedAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })}</td>
+                          <td className={styles.actionCell}>
+                            <Button size="sm" variant="sky" onClick={() => setViewingTerm(term)}>👁️ View & Print</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
+        );
+      })()}
+
+      {/* ══ ARCHIVE MODAL ══ */}
+      {archiveModal && (
+        <Modal title={archiveStep === 1 ? "📦 End of Term" : "✅ Term Archived!"} onClose={() => { setArchiveModal(false); setArchiveStep(1); }}>
+          {archiveStep === 1 ? (
+            <div style={{ padding: "0 0 8px" }}>
+              <div style={{ background: "#fef3c7", border: "1.5px solid #f59e0b", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13, color: "#78350f" }}>
+                ⚠️ This will <strong>save all current scores, comments and ratings</strong> to the archive, then <strong>clear the result book</strong> ready for the next term. Students, teachers and subjects will stay.
+              </div>
+              <Input
+                label="Term Name"
+                value={archiveLabel}
+                onChange={(e) => { setArchiveLabel(e.target.value); setArchiveErr(""); }}
+                placeholder="e.g. First Term 2024/2025"
+              />
+              <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>This label will appear in the Past Terms archive.</p>
+              {archiveErr && <div style={{ background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: 8, padding: "10px 14px", color: "#dc2626", fontSize: 13, marginTop: 10 }}>⚠️ {archiveErr}</div>}
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+                <Button variant="outline" onClick={() => setArchiveModal(false)} disabled={archiveBusy}>Cancel</Button>
+                <Button variant="red" onClick={handleArchiveAndReset} disabled={archiveBusy}>
+                  {archiveBusy ? "Archiving…" : "📦 Archive & Reset for New Term"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "10px 0 20px" }}>
+              <div style={{ fontSize: 52 }}>🎉</div>
+              <h3 style={{ margin: "12px 0 8px", color: "#0f172a" }}>"{archiveLabel}" archived!</h3>
+              <p style={{ color: "#64748b", fontSize: 14, maxWidth: 340, margin: "0 auto 20px" }}>
+                All scores and comments have been saved. The result book is now clean and ready for the next term.
+              </p>
+              <Button variant="emerald" onClick={() => { setArchiveModal(false); setArchiveStep(1); setActiveTab("pastterms"); setPastTermsLoaded(false); loadPastTerms(); }}>
+                📂 View Past Terms
+              </Button>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* ══ VIEW PAST TERM MODAL ══ */}
+      {viewingTerm && (
+        <Modal title={`📋 Results — ${viewingTerm.termLabel}`} onClose={() => setViewingTerm(null)}>
+          <div style={{ padding: "0 0 8px" }}>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
+              Archived on {new Date(viewingTerm.archivedAt).toLocaleDateString("en-GB", { weekday:"long", day:"2-digit", month:"long", year:"numeric" })} · {(viewingTerm.students||[]).length} students · {(viewingTerm.subjects||[]).length} subjects
+            </p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#0f172a", color: "#fff" }}>
+                    <th style={{ padding: "8px 10px", textAlign: "left" }}>Student</th>
+                    <th style={{ padding: "8px 10px" }}>Class</th>
+                    {(viewingTerm.subjects||[]).map((s) => (
+                      <th key={s.id} style={{ padding: "8px 6px", fontSize: 11 }}>{s.name}</th>
+                    ))}
+                    <th style={{ padding: "8px 10px" }}>Total</th>
+                    <th style={{ padding: "8px 10px" }}>Position</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(viewingTerm.students||[]).map((stu, i) => {
+                    let grandTotal = 0;
+                    return (
+                      <tr key={stu.id} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff" }}>
+                        <td style={{ padding: "7px 10px", fontWeight: 700 }}>{stu.name}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "center" }}>{stu.class}</td>
+                        {(viewingTerm.subjects||[]).map((sub) => {
+                          const sc = ((viewingTerm.scores||{})[stu.id]||{})[sub.id]||{};
+                          const total = (Number(sc.t1)||0)+(Number(sc.t2)||0)+(Number(sc.exam)||0);
+                          if (sc.t1 !== undefined) grandTotal += total;
+                          return <td key={sub.id} style={{ padding: "7px 6px", textAlign: "center" }}>{sc.t1 !== undefined ? total : "—"}</td>;
+                        })}
+                        <td style={{ padding: "7px 10px", textAlign: "center", fontWeight: 700 }}>{grandTotal || "—"}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "center" }}>
+                          {(() => {
+                            const classMates = (viewingTerm.students||[]).filter(s=>s.class===stu.class);
+                            const ranked = rankStudents(classMates, viewingTerm.scores||{});
+                            return ranked.find(r=>r.id===stu.id)?.pos ?? "—";
+                          })()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <Button variant="gold" onClick={() => {
+                // Temporarily swap DB data for printing archived term
+                const origDB = window.__printDB__;
+                window.__printDB__ = viewingTerm;
+                printResults();
+                window.__printDB__ = origDB;
+              }}>🖨️ Print This Term's Results</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
