@@ -110,8 +110,9 @@ export function AuthProvider({ children }) {
     const teacher = db.teachers.find((t) => t.pin === pin);
     if (!teacher) return { ok: false, message: "Invalid PIN. Contact your admin." };
 
-    const subject = db.subjects.find((s) => s.id === teacher.subject);
-    if (!subject)  return { ok: false, message: "No subject assigned. Contact admin." };
+    // Support both old single-subject (teacher.subject) and new multi-subject (teacher.subjects) shape
+    const subjectIds = Array.isArray(teacher.subjects) ? teacher.subjects : (teacher.subject ? [teacher.subject] : []);
+    if (subjectIds.length === 0) return { ok: false, message: "No subject assigned. Contact admin." };
 
     // 4. Firebase auth
     const result = await firebaseTeacherLogin(teacher);
