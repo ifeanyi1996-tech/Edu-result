@@ -33,6 +33,8 @@ export default function AdminPage({ toast, school = {} }) {
   const [studentModal, setStudentModal] = useState(false);
   const [teacherModal, setTeacherModal] = useState(false);
   const [subjectModal, setSubjectModal] = useState(false);
+  const [editSubjectModal, setEditSubjectModal] = useState(null); // subject object being edited
+  const [editTeacherModal, setEditTeacherModal] = useState(null); // teacher object being edited
   const [editStudentModal, setEditStudentModal] = useState(null); // student object
   const [affectiveModal, setAffectiveModal] = useState(null);     // student object
   const [rolesModal, setRolesModal] = useState(false);
@@ -122,6 +124,43 @@ export default function AdminPage({ toast, school = {} }) {
     updateDB((d) => { d.students = d.students.filter((s) => s.id !== id); delete d.scores[id]; return d; });
     toast("Student removed.", "info");
   }
+  function openEditSubject(subject) {
+    setNewSubject(subject.name);
+    setNewSubjectSection(subject.section || "both");
+    setNewSubjectStreams(Array.isArray(subject.streams) ? subject.streams : []);
+    setEditSubjectModal(subject);
+  }
+  function saveEditSubject() {
+    const name = newSubject.trim();
+    if (!name) return toast("Subject name is required.", "error");
+    const streams = newSubjectSection === "SSS" ? [...newSubjectStreams] : [];
+    updateDB((d) => {
+      const idx = d.subjects.findIndex((s) => s.id === editSubjectModal.id);
+      if (idx !== -1) d.subjects[idx] = { ...d.subjects[idx], name, section: newSubjectSection, streams };
+      return d;
+    });
+    setEditSubjectModal(null);
+    setNewSubject(""); setNewSubjectSection("JSS"); setNewSubjectStreams([]);
+    toast("✅ Subject updated.");
+  }
+
+  function openEditTeacher(teacher) {
+    setNewTeacher({ name: teacher.name, subjects: getTeacherSubjectIds(teacher) });
+    setEditTeacherModal(teacher);
+  }
+  function saveEditTeacher() {
+    const name = newTeacher.name.trim();
+    if (!name) return toast("Teacher name is required.", "error");
+    updateDB((d) => {
+      const idx = d.teachers.findIndex((t) => t.id === editTeacherModal.id);
+      if (idx !== -1) d.teachers[idx] = { ...d.teachers[idx], name, subjects: newTeacher.subjects || [] };
+      return d;
+    });
+    setEditTeacherModal(null);
+    setNewTeacher({ name: "", subjects: [] });
+    toast("✅ Teacher updated.");
+  }
+
   function deleteTeacher(id) {
     if (!window.confirm("Delete this teacher?")) return;
     updateDB((d) => { d.teachers = d.teachers.filter((t) => t.id !== id); return d; });
@@ -649,7 +688,10 @@ export default function AdminPage({ toast, school = {} }) {
                             >📋</button>
                           </div>
                         </td>
-                        <td><Button size="sm" variant="red" onClick={() => deleteTeacher(t.id)}>🗑 Remove</Button></td>
+                        <td className={styles.actionCell}>
+                          <Button size="sm" variant="sky" onClick={() => openEditTeacher(t)}>✏️ Edit</Button>
+                          <Button size="sm" variant="red" onClick={() => deleteTeacher(t.id)}>🗑 Remove</Button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -698,7 +740,10 @@ export default function AdminPage({ toast, school = {} }) {
                           ))}
                         </td>
                         <td>{teachers.length > 0 ? teachers.map(t => t.name).join(", ") : <em className={styles.muted}>No teacher</em>}</td>
-                        <td><Button size="sm" variant="red" onClick={() => deleteSubject(s.id)}>🗑 Remove</Button></td>
+                        <td className={styles.actionCell}>
+                          <Button size="sm" variant="sky" onClick={() => openEditSubject(s)}>✏️ Edit</Button>
+                          <Button size="sm" variant="red" onClick={() => deleteSubject(s.id)}>🗑 Remove</Button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -875,7 +920,55 @@ export default function AdminPage({ toast, school = {} }) {
         </div>
       </Modal>
 
-      {/* Add Teacher */}
+      {/* Edit Teacher */}
+      <Modal open={!!editTeacherModal} onClose={() => { setEditTeacherModal(null); setNewTeacher({ name: "", subjects: [] }); }} title={`✏️ Edit Teacher — ${editTeacherModal?.name || ""}`}>
+        <div className={styles.modalForm}>
+          <Input label="Teacher Name" value={newTeacher.name} onChange={(e) => setNewTeacher((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Mr. Emeka Obi" />
+          <div>
+            <label style={{ display:"block", fontWeight:700, fontSize:12, textTransform:"uppercase", letterSpacing:"0.5px", color:"var(--muted)", marginBottom:8 }}>
+              Assigned Subjects <span style={{ fontWeight:400 }}>(tick all that apply)</span>
+            </label>
+            {["JSS","SSS","both"].map((sec) => {
+              const secSubjects = db.subjects.filter((s) => (s.section || "both") === sec);
+              if (!secSubjects.length) return null;
+              const secLabel = sec === "both" ? "All Levels" : sec;
+              const secColor = sec === "SSS" ? "#1d4ed8" : sec === "JSS" ? "#065f46" : "#6d28d9";
+              const secBg    = sec === "SSS" ? "#dbeafe" : sec === "JSS" ? "#d1fae5" : "#f3e8ff";
+              return (
+                <div key={sec} style={{ marginBottom:12 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:secColor, background:secBg, padding:"2px 10px", borderRadius:20, display:"inline-block", marginBottom:6 }}>
+                    {secLabel}
+                  </div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {secSubjects.map((s) => {
+                      const checked = (newTeacher.subjects || []).includes(s.id);
+                      return (
+                        <label key={s.id} style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer", padding:"4px 10px", borderRadius:8, border:`1.5px solid ${checked ? secColor : "#e2e8f0"}`, background: checked ? secBg : "#f8fafc", fontSize:13, fontWeight: checked ? 700 : 400, color: checked ? secColor : "#374151", transition:"all 0.15s" }}>
+                          <input type="checkbox" checked={checked} style={{ accentColor:secColor }}
+                            onChange={() => {
+                              setNewTeacher((p) => {
+                                const arr = p.subjects || [];
+                                return { ...p, subjects: checked ? arr.filter((id) => id !== s.id) : [...arr, s.id] };
+                              });
+                            }}
+                          />
+                          {s.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {db.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
+          </div>
+          <div className={styles.modalActions}>
+            <Button variant="outline" onClick={() => { setEditTeacherModal(null); setNewTeacher({ name: "", subjects: [] }); }}>Cancel</Button>
+            <Button variant="emerald" onClick={saveEditTeacher}>💾 Save Changes</Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={teacherModal} onClose={() => setTeacherModal(false)} title="Add New Teacher">
         <div className={styles.modalForm}>
           <Input label="Teacher Name" value={newTeacher.name} onChange={(e) => setNewTeacher((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Mr. Emeka Obi" />
@@ -926,6 +1019,40 @@ export default function AdminPage({ toast, school = {} }) {
           <div className={styles.modalActions}>
             <Button variant="outline" onClick={() => setTeacherModal(false)}>Cancel</Button>
             <Button onClick={addTeacher}>Add Teacher</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Subject */}
+      <Modal open={!!editSubjectModal} onClose={() => { setEditSubjectModal(null); setNewSubject(""); setNewSubjectSection("JSS"); setNewSubjectStreams([]); }} title={`✏️ Edit Subject — ${editSubjectModal?.name || ""}`}>
+        <div className={styles.modalForm}>
+          <Input label="Subject Name" value={newSubject} onChange={(e) => setNewSubject(e.target.value)} placeholder="e.g. Mathematics" />
+          <SelectField label="Section (who studies this subject?)" value={newSubjectSection} onChange={(e) => setNewSubjectSection(e.target.value)}>
+            <option value="JSS">JSS only (Junior Secondary)</option>
+            <option value="SSS">SSS only (Senior Secondary)</option>
+            <option value="both">Both JSS and SSS</option>
+          </SelectField>
+          <p className={styles.pinHint}>This ensures JSS results only include JSS subjects and SSS results only include SSS subjects.</p>
+          {newSubjectSection === "SSS" && (
+            <div>
+              <label style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", display: "block", marginBottom: 6 }}>
+                SSS Streams (leave all unchecked = applies to all streams)
+              </label>
+              {["Science", "Arts", "Commercial"].map((s) => (
+                <label key={s} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={newSubjectStreams.includes(s)}
+                    onChange={(e) => setNewSubjectStreams((prev) => e.target.checked ? [...prev, s] : prev.filter((x) => x !== s))} />
+                  {s}
+                </label>
+              ))}
+              <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                e.g. Physics → Science only · Economics → Arts + Commercial · English → leave all unchecked (core)
+              </p>
+            </div>
+          )}
+          <div className={styles.modalActions}>
+            <Button variant="outline" onClick={() => { setEditSubjectModal(null); setNewSubject(""); setNewSubjectSection("JSS"); setNewSubjectStreams([]); }}>Cancel</Button>
+            <Button variant="emerald" onClick={saveEditSubject}>💾 Save Changes</Button>
           </div>
         </div>
       </Modal>
