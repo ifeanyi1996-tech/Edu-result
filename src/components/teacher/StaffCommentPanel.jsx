@@ -10,13 +10,22 @@ const ROLE_LABELS = {
   principal:    "Principal's Comment",
 };
 
-export default function StaffCommentPanel({ teacher, extraRoles, toast }) {
+export default function StaffCommentPanel({ teacher, extraRoles, toast, formMasterClasses = [] }) {
   const { db, updateDB } = useDB();
-  const [classFilter, setClassFilter] = useState("");
+  // For form masters: default to their first assigned class; others see all
+  const defaultClass = formMasterClasses.length === 1 ? formMasterClasses[0] : "";
+  const [classFilter, setClassFilter] = useState(defaultClass);
   const [drafts, setDrafts] = useState({}); // drafts[studentId][role] = text
 
-  const classes = getClasses(db.students);
-  const students = db.students.filter((s) => !classFilter || s.class === classFilter);
+  // Form masters only see students from their assigned class(es)
+  const allowedClasses = formMasterClasses.length > 0 ? formMasterClasses : null;
+  const classes = allowedClasses
+    ? [...new Set(allowedClasses)].sort()
+    : getClasses(db.students);
+  const students = db.students.filter((s) => {
+    if (allowedClasses && !allowedClasses.includes(s.class)) return false;
+    return !classFilter || s.class === classFilter;
+  });
 
   function getDraft(studentId, role) {
     if (drafts[studentId]?.[role] !== undefined) return drafts[studentId][role];

@@ -86,7 +86,7 @@ export default function StudentResultPage({ schoolId, studentId }) {
   const info     = (db.studentInfo || {})[studentId] || {};
   const staffC   = (db.staffComments || {})[studentId] || {};
   const affData  = (db.affective || {})[studentId] || {};
-  const subjects = getSubjectsForClass(db.subjects || [], student.class);
+  const subjects = getSubjectsForClass(db.subjects || [], student.class, student.stream);
 
   let grandTotal = 0;
   const subjectRows = subjects.map((sub) => {

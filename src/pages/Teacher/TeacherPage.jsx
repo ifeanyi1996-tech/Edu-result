@@ -27,7 +27,7 @@ export default function TeacherPage({ teacher, toast }) {
   const eligibleStudents = db.students.filter((s) => {
     if (classFilter && s.class !== classFilter) return false;
     if (!activeSubject) return false;
-    const classSubjs = getSubjectsForClass(db.subjects, s.class);
+    const classSubjs = getSubjectsForClass(db.subjects, s.class, s.stream);
     return classSubjs.some((sub) => sub.id === activeSubject.id);
   });
 
@@ -38,7 +38,13 @@ export default function TeacherPage({ teacher, toast }) {
   // Extra roles (form master, house mistress, principal)
   const roles      = db.roles || {};
   const extraRoles = [];
-  if (roles.formMaster    === teacher.id) extraRoles.push("formMaster");
+  // Per-class form masters: teacher is FM if assigned to any class
+  const formMasters = roles.formMasters || {};
+  const myClasses   = Object.entries(formMasters)
+    .filter(([, tid]) => tid === teacher.id)
+    .map(([cls]) => cls);
+  // Also support legacy single formMaster field
+  if (myClasses.length > 0 || roles.formMaster === teacher.id) extraRoles.push("formMaster");
   if (roles.houseMistress === teacher.id) extraRoles.push("houseMistress");
   if (roles.principal     === teacher.id) extraRoles.push("principal");
   const hasRoles = extraRoles.length > 0;
@@ -184,7 +190,7 @@ export default function TeacherPage({ teacher, toast }) {
       {/* ══ STAFF COMMENT SECTIONS ══ */}
       {hasRoles && extraRoles.map((role) =>
         activeSection === role && !selectedStudent ? (
-          <StaffCommentPanel key={role} role={role} teacher={teacher} toast={toast} />
+          <StaffCommentPanel key={role} role={role} teacher={teacher} toast={toast} formMasterClasses={myClasses} />
         ) : null
       )}
 

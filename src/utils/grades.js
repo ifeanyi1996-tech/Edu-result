@@ -17,13 +17,29 @@ export function getSection(className = "") {
 }
 
 /**
- * Returns the subjects that apply to a given class.
- * A subject applies if its section matches the class section, or is "both".
+ * Returns the subjects that apply to a given class AND stream.
+ * - section filter: JSS subjects don't show for SSS classes and vice versa
+ * - stream filter: if a subject has streams set (e.g. ["Science"]), it only
+ *   shows for students whose stream matches. Core subjects (no streams) show for all.
+ *
+ * @param {Array}  subjects   - all subjects from db
+ * @param {string} className  - e.g. "SSS 2"
+ * @param {string} [stream]   - "Science" | "Arts" | "Commercial" | "" | undefined
  */
-export function getSubjectsForClass(subjects, className) {
+export function getSubjectsForClass(subjects, className, stream) {
   const section = getSection(className);
-  if (section === "both") return subjects;
-  return subjects.filter((s) => !s.section || s.section === section || s.section === "both");
+  return subjects.filter((s) => {
+    // 1. Section filter
+    if (section !== "both") {
+      const subSec = s.section || "both";
+      if (subSec !== "both" && subSec !== section) return false;
+    }
+    // 2. Stream filter — only applies for SSS classes that have a stream set
+    if (section === "SSS" && stream && Array.isArray(s.streams) && s.streams.length > 0) {
+      return s.streams.includes(stream);
+    }
+    return true;
+  });
 }
 
 /**

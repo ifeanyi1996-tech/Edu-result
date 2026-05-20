@@ -27,7 +27,7 @@ export function defaultDB() {
     affective:        {},
     teacherComments:  {},
     staffComments:    {},
-    roles: { formMaster: "", houseMistress: "", principal: "" },
+    roles: { formMaster: "", houseMistress: "", principal: "", formMasters: {} },
   };
 }
 
@@ -38,7 +38,8 @@ function normalise(parsed) {
   if (!parsed.affective)      parsed.affective      = {};
   if (!parsed.teacherComments)parsed.teacherComments= {};
   if (!parsed.staffComments)  parsed.staffComments  = {};
-  if (!parsed.roles)          parsed.roles          = { formMaster:"", houseMistress:"", principal:"" };
+  if (!parsed.roles)          parsed.roles          = { formMaster:"", houseMistress:"", principal:"", formMasters:{} };
+  if (!parsed.roles.formMasters) parsed.roles.formMasters = {};
   if (!parsed.scores)         parsed.scores         = {};
   if (!parsed.students)       parsed.students       = [];
   if (!parsed.teachers)       parsed.teachers       = [];

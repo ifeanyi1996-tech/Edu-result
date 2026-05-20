@@ -48,19 +48,20 @@ export default function AdminPage({ toast, school = {} }) {
   const [viewingTerm,     setViewingTerm]     = useState(null);
 
   // New item forms
-  const [newStudent, setNewStudent] = useState({ name: "", class: "" });
+  const [newStudent, setNewStudent] = useState({ name: "", class: "", stream: "" });
   const [newTeacher, setNewTeacher] = useState({ name: "", subjects: [] });
   const [newSubject, setNewSubject] = useState("");
   const [newSubjectSection, setNewSubjectSection] = useState("JSS");
+  const [newSubjectStreams, setNewSubjectStreams] = useState([]); // [] = all streams
 
   // Edit student info form
-  const [editInfo, setEditInfo] = useState({ admNo: "", sex: "", term: "", passport: "" });
+  const [editInfo, setEditInfo] = useState({ admNo: "", sex: "", term: "", passport: "", stream: "" });
 
   // Affective draft
   const [affDraft, setAffDraft] = useState({});
 
   // Roles draft
-  const [rolesDraft, setRolesDraft] = useState({ formMaster: "", houseMistress: "", principal: "" });
+  const [rolesDraft, setRolesDraft] = useState({ formMaster: "", houseMistress: "", principal: "", formMasters: {} });
 
   const classes = getClasses(db.students);
 
@@ -72,8 +73,9 @@ export default function AdminPage({ toast, school = {} }) {
     if (!cls)  return toast("Class is required.", "error");
     if (db.students.some((s) => s.name.toLowerCase() === name.toLowerCase()))
       return toast(`⚠️ Student "${name}" already exists!`, "error");
-    updateDB((d) => { const id = Date.now().toString(); d.students.push({ id, name, class: cls }); d.scores[id] = {}; return d; });
-    setNewStudent({ name: "", class: "" });
+    const stream = (newStudent.stream || "").trim();
+    updateDB((d) => { const id = Date.now().toString(); d.students.push({ id, name, class: cls, stream }); d.scores[id] = {}; return d; });
+    setNewStudent({ name: "", class: "", stream: "" });
     setStudentModal(false);
     toast(`✅ Student "${name}" added.`);
   }
@@ -109,7 +111,8 @@ export default function AdminPage({ toast, school = {} }) {
     if (!name) return toast("Subject name is required.", "error");
     if (db.subjects.some((s) => s.name.toLowerCase() === name.toLowerCase()))
       return toast(`⚠️ Subject "${name}" already exists!`, "error");
-    updateDB((d) => { d.subjects.push({ id: Date.now().toString(), name, section: newSubjectSection }); return d; });
+    const streams = newSubjectSection === "SSS" ? [...newSubjectStreams] : [];
+    updateDB((d) => { d.subjects.push({ id: Date.now().toString(), name, section: newSubjectSection, streams }); return d; });
     setNewSubject(""); setSubjectModal(false);
     toast(`✅ Subject "${name}" (${newSubjectSection}) added.`);
   }
@@ -156,13 +159,15 @@ export default function AdminPage({ toast, school = {} }) {
   // ── Edit student info ───────────────────────────────────────────────
   function openEditStudent(student) {
     const info = (db.studentInfo || {})[student.id] || {};
-    setEditInfo({ admNo: info.admNo || "", sex: info.sex || "", term: info.term || "", passport: info.passport || "" });
+    setEditInfo({ admNo: info.admNo || "", sex: info.sex || "", term: info.term || "", passport: info.passport || "", stream: student.stream || "" });
     setEditStudentModal(student);
   }
   function saveStudentInfo() {
     updateDB((d) => {
       if (!d.studentInfo) d.studentInfo = {};
       d.studentInfo[editStudentModal.id] = { admNo: editInfo.admNo, sex: editInfo.sex, term: editInfo.term, passport: editInfo.passport || "" };
+      const stuIdx = d.students.findIndex((s) => s.id === editStudentModal.id);
+      if (stuIdx !== -1) d.students[stuIdx].stream = editInfo.stream || "";
       return d;
     });
     setEditStudentModal(null);
@@ -294,7 +299,7 @@ export default function AdminPage({ toast, school = {} }) {
       let subjectRows = "";
       let grandTotal = 0;
 
-      const studentSubjects = getSubjectsForClass(db.subjects, student.class);
+      const studentSubjects = getSubjectsForClass(db.subjects, student.class, student.stream);
       studentSubjects.forEach((sub) => {
         const sc = (db.scores[student.id] || {})[sub.id] || {};
         const tc = (db.teacherComments?.[student.id] || {})[sub.id] || {};
@@ -539,11 +544,11 @@ export default function AdminPage({ toast, school = {} }) {
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
-                  <tr><th>#</th><th>Student Name</th><th>Class</th><th>Adm No.</th><th>Sex</th><th>Term</th><th>Result Link</th><th>Actions</th></tr>
+                  <tr><th>#</th><th>Student Name</th><th>Class</th><th>Stream</th><th>Adm No.</th><th>Sex</th><th>Term</th><th>Result Link</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {!filteredStudents.length ? (
-                    <tr><td colSpan={8} className={styles.emptyCell}>No students yet. Add one above.</td></tr>
+                    <tr><td colSpan={9} className={styles.emptyCell}>No students yet. Add one above.</td></tr>
                   ) : filteredStudents.map((s, i) => {
                     const info = (db.studentInfo || {})[s.id] || {};
                     const schoolUid = localStorage.getItem("schoolUid") || "";
@@ -555,6 +560,15 @@ export default function AdminPage({ toast, school = {} }) {
                         <td>{i + 1}</td>
                         <td className={styles.bold}>{s.name}</td>
                         <td><span className={styles.classBadge}>{s.class}</span></td>
+                        <td>
+                          {s.stream
+                            ? <span style={{ padding:"2px 8px", borderRadius:12, fontSize:11, fontWeight:700,
+                                background: s.stream==="Science"?"#dbeafe":s.stream==="Arts"?"#d1fae5":"#fef3c7",
+                                color: s.stream==="Science"?"#1d4ed8":s.stream==="Arts"?"#065f46":"#92400e" }}>
+                                {s.stream}
+                              </span>
+                            : <em className={styles.muted}>—</em>}
+                        </td>
                         <td className={styles.muted}>{info.admNo || <em>—</em>}</td>
                         <td className={styles.muted}>{info.sex || <em>—</em>}</td>
                         <td className={styles.muted}>{info.term || <em>—</em>}</td>
@@ -603,7 +617,9 @@ export default function AdminPage({ toast, school = {} }) {
                     const teacherSubIds = getTeacherSubjectIds(t);
                     const teacherSubs = db.subjects.filter((s) => teacherSubIds.includes(s.id));
                     const teacherRoles = [];
-                    if (roles.formMaster === t.id) teacherRoles.push("Form Master");
+                    const fmClasses = Object.entries(roles.formMasters || {}).filter(([,tid]) => tid === t.id).map(([cls]) => cls);
+                    if (fmClasses.length > 0) teacherRoles.push(`Form Master (${fmClasses.join(", ")})`);
+                    else if (roles.formMaster === t.id) teacherRoles.push("Form Master");
                     if (roles.houseMistress === t.id) teacherRoles.push("House Mistress");
                     if (roles.principal === t.id) teacherRoles.push("Principal");
                     return (
@@ -659,7 +675,7 @@ export default function AdminPage({ toast, school = {} }) {
             </div>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
-                <thead><tr><th>#</th><th>Subject Name</th><th>Assigned Teacher</th><th>Actions</th></tr></thead>
+                <thead><tr><th>#</th><th>Subject Name</th><th>Scope</th><th>Assigned Teacher</th><th>Actions</th></tr></thead>
                 <tbody>
                   {!db.subjects.length ? (
                     <tr><td colSpan={4} className={styles.emptyCell}>No subjects yet.</td></tr>
@@ -673,6 +689,13 @@ export default function AdminPage({ toast, school = {} }) {
                           <span style={{ display:"inline-block", padding:"2px 8px", borderRadius:12, fontSize:11, fontWeight:700, background: s.section === "SSS" ? "#dbeafe" : s.section === "JSS" ? "#d1fae5" : "#f3e8ff", color: s.section === "SSS" ? "#1d4ed8" : s.section === "JSS" ? "#065f46" : "#6d28d9", marginRight:6 }}>
                             {s.section || "All"}
                           </span>
+                          {s.section === "SSS" && Array.isArray(s.streams) && s.streams.length > 0 && s.streams.map((st) => (
+                            <span key={st} style={{ display:"inline-block", padding:"2px 6px", borderRadius:12, fontSize:10, fontWeight:700, marginRight:3,
+                              background: st==="Science"?"#ede9fe":st==="Arts"?"#d1fae5":"#fef3c7",
+                              color: st==="Science"?"#6d28d9":st==="Arts"?"#065f46":"#92400e" }}>
+                              {st}
+                            </span>
+                          ))}
                         </td>
                         <td>{teachers.length > 0 ? teachers.map(t => t.name).join(", ") : <em className={styles.muted}>No teacher</em>}</td>
                         <td><Button size="sm" variant="red" onClick={() => deleteSubject(s.id)}>🗑 Remove</Button></td>
@@ -716,6 +739,13 @@ export default function AdminPage({ toast, school = {} }) {
         <div className={styles.modalForm}>
           <Input label="Full Name" value={newStudent.name} onChange={(e) => setNewStudent((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Amara Johnson" />
           <Input label="Class" value={newStudent.class} onChange={(e) => setNewStudent((p) => ({ ...p, class: e.target.value }))} placeholder="e.g. JSS 1A" />
+          {/* Stream selector — only relevant for SSS */}
+          <SelectField label="Stream (SSS students only)" value={newStudent.stream || ""} onChange={(e) => setNewStudent((p) => ({ ...p, stream: e.target.value }))}>
+            <option value="">— None / JSS —</option>
+            <option value="Science">Science</option>
+            <option value="Arts">Arts</option>
+            <option value="Commercial">Commercial</option>
+          </SelectField>
           <div className={styles.modalActions}>
             <Button variant="outline" onClick={() => setStudentModal(false)}>Cancel</Button>
             <Button onClick={addStudent}>Add Student</Button>
@@ -731,6 +761,12 @@ export default function AdminPage({ toast, school = {} }) {
             <option value="">— Select —</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
+          </SelectField>
+          <SelectField label="Stream (SSS students only)" value={editInfo.stream || ""} onChange={(e) => setEditInfo((p) => ({ ...p, stream: e.target.value }))}>
+            <option value="">— None / JSS —</option>
+            <option value="Science">Science</option>
+            <option value="Arts">Arts</option>
+            <option value="Commercial">Commercial</option>
           </SelectField>
           <Input label="Term" value={editInfo.term} onChange={(e) => setEditInfo((p) => ({ ...p, term: e.target.value }))} placeholder="e.g. First Term 2024/2025" />
 
@@ -791,24 +827,47 @@ export default function AdminPage({ toast, school = {} }) {
       {/* Roles assignment */}
       <Modal open={rolesModal} onClose={() => setRolesModal(false)} title="Assign Staff Roles">
         <p className={styles.pinHint} style={{ marginBottom: 16 }}>
-          The assigned teacher will be able to edit that comment section in the Teacher Portal.
+          Form Masters are assigned per class. House Mistress and Principal have school-wide access.
         </p>
         <div className={styles.modalForm}>
+          {/* School-wide roles */}
           {[
-            { key: "formMaster", label: "Form Master" },
-            { key: "houseMistress", label: "House Mistress" },
-            { key: "principal", label: "Principal" },
+            { key: "houseMistress", label: "🏫 House Mistress" },
+            { key: "principal",     label: "🎓 Principal" },
           ].map(({ key, label }) => (
             <SelectField key={key} label={label} value={rolesDraft[key] || ""} onChange={(e) => setRolesDraft((p) => ({ ...p, [key]: e.target.value }))}>
               <option value="">— Not assigned —</option>
               {db.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </SelectField>
           ))}
-          <p className={styles.pinHint}>
-            Currently: Form Master = {getTeacherName(roles.formMaster)} · 
-            House Mistress = {getTeacherName(roles.houseMistress)} · 
-            Principal = {getTeacherName(roles.principal)}
-          </p>
+
+          {/* Per-class Form Masters */}
+          <div style={{ marginTop: 16 }}>
+            <label style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", display: "block", marginBottom: 8 }}>📋 Form Masters (per class)</label>
+            {classes.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#94a3b8" }}>No classes yet — add students first.</p>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {classes.map((cls) => (
+                  <div key={cls} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ minWidth: 90, fontWeight: 600, fontSize: 13, color: "#334155" }}>{cls}</span>
+                    <select
+                      style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, background: "#f8fafc" }}
+                      value={(rolesDraft.formMasters || {})[cls] || ""}
+                      onChange={(e) => setRolesDraft((p) => ({
+                        ...p,
+                        formMasters: { ...(p.formMasters || {}), [cls]: e.target.value }
+                      }))}
+                    >
+                      <option value="">— Not assigned —</option>
+                      {db.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className={styles.modalActions}>
             <Button variant="outline" onClick={() => setRolesModal(false)}>Cancel</Button>
             <Button variant="emerald" onClick={saveRoles}>💾 Save Roles</Button>
@@ -881,6 +940,23 @@ export default function AdminPage({ toast, school = {} }) {
             <option value="both">Both JSS and SSS</option>
           </SelectField>
           <p className={styles.pinHint}>This ensures JSS results only include JSS subjects and SSS results only include SSS subjects.</p>
+          {newSubjectSection === "SSS" && (
+            <div>
+              <label style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", display: "block", marginBottom: 6 }}>
+                SSS Streams (leave all unchecked = applies to all streams)
+              </label>
+              {["Science", "Arts", "Commercial"].map((s) => (
+                <label key={s} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={newSubjectStreams.includes(s)}
+                    onChange={(e) => setNewSubjectStreams((prev) => e.target.checked ? [...prev, s] : prev.filter((x) => x !== s))} />
+                  {s}
+                </label>
+              ))}
+              <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                e.g. Physics → Science only · Economics → Arts + Commercial · English → leave all unchecked (core)
+              </p>
+            </div>
+          )}
           <div className={styles.modalActions}>
             <Button variant="outline" onClick={() => setSubjectModal(false)}>Cancel</Button>
             <Button onClick={addSubject}>Add Subject</Button>
