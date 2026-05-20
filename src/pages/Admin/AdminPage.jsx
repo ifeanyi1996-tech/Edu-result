@@ -35,6 +35,7 @@ export default function AdminPage({ toast, school = {} }) {
   const [subjectModal, setSubjectModal] = useState(false);
   const [editSubjectModal, setEditSubjectModal] = useState(null); // subject object being edited
   const [enrollModal,      setEnrollModal]      = useState(null); // subject being enrolled
+  const [dragIdx,          setDragIdx]          = useState(null);
   const [promotionModal,   setPromotionModal]   = useState(false);
   const [editTeacherModal, setEditTeacherModal] = useState(null); // teacher object being edited
   const [editStudentModal, setEditStudentModal] = useState(null); // student object
@@ -749,14 +750,45 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
             </div>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
-                <thead><tr><th>#</th><th>Subject Name</th><th>Scope</th><th>Assigned Teacher</th><th>Actions</th></tr></thead>
+                <thead><tr>
+                  <th style={{ width:32 }}></th>
+                  <th>#</th><th>Subject Name</th><th>Scope</th><th>Assigned Teacher</th><th>Actions</th>
+                </tr></thead>
                 <tbody>
                   {!db.subjects.length ? (
-                    <tr><td colSpan={4} className={styles.emptyCell}>No subjects yet.</td></tr>
+                    <tr><td colSpan={6} className={styles.emptyCell}>No subjects yet.</td></tr>
                   ) : db.subjects.map((s, i) => {
-                    const teachers = db.teachers.filter((t) => getTeacherSubjectIds(t).includes(s.id));
+                    const teachers  = db.teachers.filter((t) => getTeacherSubjectIds(t).includes(s.id));
+                    const isDragging = dragIdx === i;
+                    const isDragOver = dragIdx !== null && dragIdx !== i;
                     return (
-                      <tr key={s.id}>
+                      <tr
+                        key={s.id}
+                        draggable
+                        onDragStart={() => setDragIdx(i)}
+                        onDragEnd={() => setDragIdx(null)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => {
+                          if (dragIdx === null || dragIdx === i) return;
+                          updateDB((d) => {
+                            const arr = [...d.subjects];
+                            const [moved] = arr.splice(dragIdx, 1);
+                            arr.splice(i, 0, moved);
+                            d.subjects = arr;
+                            return d;
+                          });
+                          setDragIdx(null);
+                        }}
+                        style={{
+                          opacity:    isDragging ? 0.4 : 1,
+                          background: isDragOver ? "#f0f9ff" : undefined,
+                          borderTop:  isDragOver && i < dragIdx ? "2px solid #0ea5e9" : undefined,
+                          borderBottom: isDragOver && i > dragIdx ? "2px solid #0ea5e9" : undefined,
+                          transition: "background 0.1s",
+                        }}
+                      >
+                        <td style={{ cursor:"grab", textAlign:"center", color:"#94a3b8", fontSize:18, userSelect:"none", padding:"0 6px" }}
+                            title="Drag to reorder">⠿</td>
                         <td>{i + 1}</td>
                         <td className={styles.bold}>{s.name}</td>
                         <td>
