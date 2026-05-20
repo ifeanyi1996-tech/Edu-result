@@ -34,6 +34,7 @@ export default function AdminPage({ toast, school = {} }) {
   const [teacherModal, setTeacherModal] = useState(false);
   const [subjectModal, setSubjectModal] = useState(false);
   const [editSubjectModal, setEditSubjectModal] = useState(null); // subject object being edited
+  const [enrollModal, setEnrollModal]       = useState(null); // subject being enrolled
   const [editTeacherModal, setEditTeacherModal] = useState(null); // teacher object being edited
   const [editStudentModal, setEditStudentModal] = useState(null); // student object
   const [affectiveModal, setAffectiveModal] = useState(null);     // student object
@@ -742,6 +743,7 @@ export default function AdminPage({ toast, school = {} }) {
                         <td>{teachers.length > 0 ? teachers.map(t => t.name).join(", ") : <em className={styles.muted}>No teacher</em>}</td>
                         <td className={styles.actionCell}>
                           <Button size="sm" variant="sky" onClick={() => openEditSubject(s)}>✏️ Edit</Button>
+                          <Button size="sm" variant="teal" onClick={() => setEnrollModal(s)}>👥 Enroll</Button>
                           <Button size="sm" variant="red" onClick={() => deleteSubject(s.id)}>🗑 Remove</Button>
                         </td>
                       </tr>
@@ -1022,6 +1024,115 @@ export default function AdminPage({ toast, school = {} }) {
           </div>
         </div>
       </Modal>
+
+      {/* ══ ENROLLMENT MODAL ══ */}
+      {enrollModal && (() => {
+        const subj        = enrollModal;
+        const enrolled    = (db.enrollment || {})[subj.id] || [];
+        // Build eligible students — those whose class/stream can take this subject
+        const eligible    = db.students.filter((s) => {
+          const { getSubjectsForClass: gsc } = require ? {} : {}; // resolved below
+          return true; // all students shown; admin ticks who takes this subject
+        });
+        // Group eligible students by class
+        const byClass = {};
+        db.students.forEach((s) => {
+          if (!byClass[s.class]) byClass[s.class] = [];
+          byClass[s.class].push(s);
+        });
+        const sortedClasses = Object.keys(byClass).sort();
+        const isEnrolled    = (sid) => enrolled.length === 0 || enrolled.includes(sid);
+        const allEnrolled   = db.students.every((s) => enrolled.includes(s.id));
+        const noneEnrolled  = enrolled.length === 0;
+
+        function toggle(sid) {
+          updateDB((d) => {
+            if (!d.enrollment) d.enrollment = {};
+            const cur = d.enrollment[subj.id] || [];
+            if (cur.includes(sid)) d.enrollment[subj.id] = cur.filter((x) => x !== sid);
+            else d.enrollment[subj.id] = [...cur, sid];
+            return d;
+          });
+        }
+        function toggleClass(cls) {
+          const classIds = byClass[cls].map((s) => s.id);
+          const allIn    = classIds.every((id) => enrolled.includes(id));
+          updateDB((d) => {
+            if (!d.enrollment) d.enrollment = {};
+            const cur = d.enrollment[subj.id] || [];
+            if (allIn) d.enrollment[subj.id] = cur.filter((id) => !classIds.includes(id));
+            else d.enrollment[subj.id] = [...new Set([...cur, ...classIds])];
+            return d;
+          });
+        }
+        function clearEnrollment() {
+          updateDB((d) => { if (d.enrollment) delete d.enrollment[subj.id]; return d; });
+          toast("✅ Enrollment cleared — subject now open to all eligible students.");
+        }
+
+        return (
+          <Modal title={`👥 Enroll Students — ${subj.name}`} onClose={() => setEnrollModal(null)}>
+            <div style={{ padding: "0 0 4px" }}>
+              <div style={{ background: "#f0f9ff", border: "1.5px solid #bae6fd", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#0c4a6e" }}>
+                ℹ️ Tick the students who take <strong>{subj.name}</strong>. Unticked students won't appear in the teacher's score entry for this subject. Leave all unticked to allow all eligible students (default behaviour).
+              </div>
+
+              {db.students.length === 0 ? (
+                <p style={{ color: "#94a3b8", fontSize: 13 }}>No students added yet.</p>
+              ) : (
+                <>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                    <button onClick={clearEnrollment} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", color: "#64748b" }}>
+                      🔓 Open to all (clear enrollment)
+                    </button>
+                  </div>
+                  <div style={{ maxHeight: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+                    {sortedClasses.map((cls) => {
+                      const classIds  = byClass[cls].map((s) => s.id);
+                      const allIn     = enrolled.length > 0 && classIds.every((id) => enrolled.includes(id));
+                      const someIn    = !allIn && enrolled.length > 0 && classIds.some((id) => enrolled.includes(id));
+                      return (
+                        <div key={cls}>
+                          {/* Class header with select-all toggle */}
+                          <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "#0f172a", borderRadius: "8px 8px 0 0", cursor: "pointer" }}>
+                            <input type="checkbox" checked={allIn} ref={(el) => { if (el) el.indeterminate = someIn; }}
+                              onChange={() => toggleClass(cls)} style={{ accentColor: "#f59e0b", width: 15, height: 15 }} />
+                            <span style={{ fontWeight: 700, fontSize: 13, color: "#fff" }}>{cls}</span>
+                            <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: "auto" }}>
+                              {enrolled.length > 0 ? `${classIds.filter((id) => enrolled.includes(id)).length}/${classIds.length}` : `0/${classIds.length} (open)`}
+                            </span>
+                          </label>
+                          {/* Student checkboxes */}
+                          <div style={{ border: "1.5px solid #e2e8f0", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
+                            {byClass[cls].map((s) => {
+                              const checked = enrolled.length > 0 && enrolled.includes(s.id);
+                              return (
+                                <label key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
+                                  <input type="checkbox" checked={checked} onChange={() => toggle(s.id)}
+                                    style={{ accentColor: "#0d9488", width: 14, height: 14 }} />
+                                  <span style={{ fontSize: 13, color: checked ? "#0f172a" : "#64748b", fontWeight: checked ? 600 : 400 }}>
+                                    {s.name}
+                                    {s.stream ? <span style={{ marginLeft: 6, fontSize: 10, padding: "1px 6px", borderRadius: 10, fontWeight: 700,
+                                      background: s.stream==="Science"?"#dbeafe":s.stream==="Arts"?"#d1fae5":"#fef3c7",
+                                      color: s.stream==="Science"?"#1d4ed8":s.stream==="Arts"?"#065f46":"#92400e" }}>{s.stream}</span> : null}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 12, textAlign: "center" }}>
+                    Changes save instantly. Close when done.
+                  </p>
+                </>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* Edit Subject */}
       <Modal open={!!editSubjectModal} onClose={() => { setEditSubjectModal(null); setNewSubject(""); setNewSubjectSection("JSS"); setNewSubjectStreams([]); }} title={`✏️ Edit Subject — ${editSubjectModal?.name || ""}`}>

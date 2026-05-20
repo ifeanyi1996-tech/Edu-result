@@ -28,6 +28,7 @@ export function defaultDB() {
     teacherComments:  {},
     staffComments:    {},
     roles: { formMaster: "", houseMistress: "", principal: "", formMasters: {} },
+    enrollment: {},   // enrollment[subjectId] = [studentId, ...] — optional; empty = all eligible students
   };
 }
 
@@ -40,6 +41,7 @@ function normalise(parsed) {
   if (!parsed.staffComments)  parsed.staffComments  = {};
   if (!parsed.roles)          parsed.roles          = { formMaster:"", houseMistress:"", principal:"", formMasters:{} };
   if (!parsed.roles.formMasters) parsed.roles.formMasters = {};
+  if (!parsed.enrollment)      parsed.enrollment      = {};
   if (!parsed.scores)         parsed.scores         = {};
   if (!parsed.students)       parsed.students       = [];
   if (!parsed.teachers)       parsed.teachers       = [];

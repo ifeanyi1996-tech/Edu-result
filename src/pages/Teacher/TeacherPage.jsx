@@ -24,11 +24,16 @@ export default function TeacherPage({ teacher, toast }) {
   const classes = getClasses(db.students);
 
   // Only show students whose class has this subject in scope
+  // AND who are enrolled in the subject (if an enrollment list exists for it)
   const eligibleStudents = db.students.filter((s) => {
     if (classFilter && s.class !== classFilter) return false;
     if (!activeSubject) return false;
     const classSubjs = getSubjectsForClass(db.subjects, s.class, s.stream);
-    return classSubjs.some((sub) => sub.id === activeSubject.id);
+    if (!classSubjs.some((sub) => sub.id === activeSubject.id)) return false;
+    // Enrollment check: if the subject has an explicit list, student must be on it
+    const enrolled = (db.enrollment || {})[activeSubject.id];
+    if (Array.isArray(enrolled) && enrolled.length > 0) return enrolled.includes(s.id);
+    return true;
   });
 
   const scoredCount = eligibleStudents.filter(
