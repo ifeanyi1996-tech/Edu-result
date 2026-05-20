@@ -195,7 +195,7 @@ export default function TeacherPage({ teacher, toast }) {
       {/* ══ STAFF COMMENT SECTIONS ══ */}
       {hasRoles && extraRoles.map((role) =>
         activeSection === role && !selectedStudent ? (
-          <StaffCommentPanel key={role} role={role} teacher={teacher} toast={toast} formMasterClasses={myClasses} />
+          <StaffCommentPanel key={role} extraRoles={[role]} teacher={teacher} toast={toast} formMasterClasses={myClasses} />
         ) : null
       )}
 

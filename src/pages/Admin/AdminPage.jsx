@@ -10,7 +10,7 @@ import Button from "../../components/common/Button";
 import Card from "../../components/common/Card";
 import Modal from "../../components/common/Modal";
 import Input from "../../components/common/Input";
-import { archiveCurrentTerm, fetchArchivedTerms, buildResetDB } from "../../utils/db";
+import { archiveCurrentTerm, fetchArchivedTerms, buildResetDB, getNextClass } from "../../utils/db";
 import SelectField from "../../components/common/SelectField";
 import styles from "./AdminPage.module.css";
 
@@ -34,7 +34,8 @@ export default function AdminPage({ toast, school = {} }) {
   const [teacherModal, setTeacherModal] = useState(false);
   const [subjectModal, setSubjectModal] = useState(false);
   const [editSubjectModal, setEditSubjectModal] = useState(null); // subject object being edited
-  const [enrollModal, setEnrollModal]       = useState(null); // subject being enrolled
+  const [enrollModal,      setEnrollModal]      = useState(null); // subject being enrolled
+  const [promotionModal,   setPromotionModal]   = useState(false);
   const [editTeacherModal, setEditTeacherModal] = useState(null); // teacher object being edited
   const [editStudentModal, setEditStudentModal] = useState(null); // student object
   const [affectiveModal, setAffectiveModal] = useState(null);     // student object
@@ -58,7 +59,7 @@ export default function AdminPage({ toast, school = {} }) {
   const [newSubjectStreams, setNewSubjectStreams] = useState([]); // [] = all streams
 
   // Edit student info form
-  const [editInfo, setEditInfo] = useState({ admNo: "", sex: "", term: "", passport: "", stream: "" });
+  const [editInfo, setEditInfo] = useState({ admNo: "", sex: "", passport: "", stream: "" });
 
   // Affective draft
   const [affDraft, setAffDraft] = useState({});
@@ -67,6 +68,12 @@ export default function AdminPage({ toast, school = {} }) {
   const [rolesDraft, setRolesDraft] = useState({ formMaster: "", houseMistress: "", principal: "", formMasters: {} });
 
   const classes = getClasses(db.students);
+
+  // Current term helpers
+  const TERM_NAMES   = ["First Term", "Second Term", "Third Term"];
+  const currentTerm  = db.currentTerm || { term: 1, year: "2025/2026" };
+  const termLabel    = `${TERM_NAMES[currentTerm.term - 1]} ${currentTerm.year}`;
+  const isThirdTerm  = currentTerm.term === 3;
 
   // ── Add / Delete helpers ────────────────────────────────────────────
   function addStudent() {
@@ -199,13 +206,13 @@ export default function AdminPage({ toast, school = {} }) {
   // ── Edit student info ───────────────────────────────────────────────
   function openEditStudent(student) {
     const info = (db.studentInfo || {})[student.id] || {};
-    setEditInfo({ admNo: info.admNo || "", sex: info.sex || "", term: info.term || "", passport: info.passport || "", stream: student.stream || "" });
+    setEditInfo({ admNo: info.admNo || "", sex: info.sex || "", passport: info.passport || "", stream: student.stream || "" });
     setEditStudentModal(student);
   }
   function saveStudentInfo() {
     updateDB((d) => {
       if (!d.studentInfo) d.studentInfo = {};
-      d.studentInfo[editStudentModal.id] = { admNo: editInfo.admNo, sex: editInfo.sex, term: editInfo.term, passport: editInfo.passport || "" };
+      d.studentInfo[editStudentModal.id] = { admNo: editInfo.admNo, sex: editInfo.sex, passport: editInfo.passport || "" };
       const stuIdx = d.students.findIndex((s) => s.id === editStudentModal.id);
       if (stuIdx !== -1) d.students[stuIdx].stream = editInfo.stream || "";
       return d;
@@ -413,7 +420,7 @@ export default function AdminPage({ toast, school = {} }) {
           <tr>
             <td><span class="info-label">Form Position this Term: </span><span class="info-val">${position}</span></td>
             <td><span class="info-label">Out of: </span><span class="info-val">${totalStudents}</span></td>
-            <td colspan="2"><span class="info-label">Term: </span><span class="info-val">${info.term || ""}</span></td>
+            <td colspan="2"><span class="info-label">Term: </span><span class="info-val">${termLabel}</span></td>
           </tr>
         </table>
 
@@ -529,14 +536,38 @@ export default function AdminPage({ toast, school = {} }) {
           <p className={styles.pageSub}>Manage students, teachers, subjects and result entry.</p>
         </div>
         <div className={styles.headerActions}>
+          {/* ── Current term indicator ── */}
+          <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background:"#f0f9ff", border:"1.5px solid #7dd3fc", borderRadius:10, fontSize:13 }}>
+            <span style={{ fontWeight:700, color:"#0369a1" }}>📅 {termLabel}</span>
+            <button
+              onClick={() => {
+                const t = db.currentTerm || { term:1, year:"2025/2026" };
+                const newYear = (() => {
+                  const m = t.year.match(/(\d{4})\/(\d{4})/);
+                  return m ? `${parseInt(m[2])}/${parseInt(m[2])+1}` : t.year;
+                })();
+                const next = t.term < 3 ? { ...t, term: t.term+1 } : { term:1, year:newYear };
+                if (window.confirm(`Advance to ${TERM_NAMES[next.term-1]} ${next.year}?
+
+This only updates the term label. Use "End of Term" to archive and reset scores.`)) {
+                  updateDB((d) => { d.currentTerm = next; return d; });
+                  toast(`📅 Term updated to ${TERM_NAMES[next.term-1]} ${next.year}`);
+                }
+              }}
+              style={{ fontSize:11, padding:"2px 8px", borderRadius:6, border:"1px solid #7dd3fc", background:"#fff", cursor:"pointer", color:"#0369a1" }}
+            >Change</button>
+          </div>
           <Button variant="outline" onClick={openRoles}>👥 Assign Roles</Button>
+          {isThirdTerm && (
+            <Button variant="gold" onClick={() => setPromotionModal(true)}>🎓 Promotions</Button>
+          )}
           <Button variant={db.locked ? "emerald" : "red"} onClick={toggleLock}>
             {db.locked ? "🔓 Unlock Results" : "🔒 Lock Results"}
           </Button>
           <Button variant="gold" onClick={printResults}>🖨️ Print Results</Button>
           <Button
             variant="red"
-            onClick={() => { setArchiveModal(true); setArchiveStep(1); setArchiveLabel(""); setArchiveErr(""); }}
+            onClick={() => { setArchiveModal(true); setArchiveStep(1); setArchiveLabel(termLabel); setArchiveErr(""); }}
           >📦 End of Term</Button>
         </div>
       </div>
@@ -611,7 +642,7 @@ export default function AdminPage({ toast, school = {} }) {
                         </td>
                         <td className={styles.muted}>{info.admNo || <em>—</em>}</td>
                         <td className={styles.muted}>{info.sex || <em>—</em>}</td>
-                        <td className={styles.muted}>{info.term || <em>—</em>}</td>
+                        <td className={styles.muted}>{termLabel}</td>
                         <td>
                           {resultUrl ? (
                             <Button
@@ -815,7 +846,7 @@ export default function AdminPage({ toast, school = {} }) {
             <option value="Arts">Arts</option>
             <option value="Commercial">Commercial</option>
           </SelectField>
-          <Input label="Term" value={editInfo.term} onChange={(e) => setEditInfo((p) => ({ ...p, term: e.target.value }))} placeholder="e.g. First Term 2024/2025" />
+          <p style={{ fontSize:12, color:"#64748b", margin:"2px 0 8px" }}>📅 Current term: <strong>{termLabel}</strong> — set school-wide from the top bar.</p>
 
           {/* Passport Photo */}
           <div>
@@ -1026,115 +1057,28 @@ export default function AdminPage({ toast, school = {} }) {
       </Modal>
 
       {/* ══ ENROLLMENT MODAL ══ */}
-      {enrollModal && (() => {
-        const subj        = enrollModal;
-        const enrolled    = (db.enrollment || {})[subj.id] || [];
-        // Build eligible students — those whose class/stream can take this subject
-        const eligible    = db.students.filter((s) => {
-          const { getSubjectsForClass: gsc } = require ? {} : {}; // resolved below
-          return true; // all students shown; admin ticks who takes this subject
-        });
-        // Group eligible students by class
-        const byClass = {};
-        db.students.forEach((s) => {
-          if (!byClass[s.class]) byClass[s.class] = [];
-          byClass[s.class].push(s);
-        });
-        const sortedClasses = Object.keys(byClass).sort();
-        const isEnrolled    = (sid) => enrolled.length === 0 || enrolled.includes(sid);
-        const allEnrolled   = db.students.every((s) => enrolled.includes(s.id));
-        const noneEnrolled  = enrolled.length === 0;
+      {enrollModal && (
+        <EnrollModal
+          subject={enrollModal}
+          db={db}
+          updateDB={updateDB}
+          toast={toast}
+          onClose={() => setEnrollModal(null)}
+        />
+      )}
 
-        function toggle(sid) {
-          updateDB((d) => {
-            if (!d.enrollment) d.enrollment = {};
-            const cur = d.enrollment[subj.id] || [];
-            if (cur.includes(sid)) d.enrollment[subj.id] = cur.filter((x) => x !== sid);
-            else d.enrollment[subj.id] = [...cur, sid];
-            return d;
-          });
-        }
-        function toggleClass(cls) {
-          const classIds = byClass[cls].map((s) => s.id);
-          const allIn    = classIds.every((id) => enrolled.includes(id));
-          updateDB((d) => {
-            if (!d.enrollment) d.enrollment = {};
-            const cur = d.enrollment[subj.id] || [];
-            if (allIn) d.enrollment[subj.id] = cur.filter((id) => !classIds.includes(id));
-            else d.enrollment[subj.id] = [...new Set([...cur, ...classIds])];
-            return d;
-          });
-        }
-        function clearEnrollment() {
-          updateDB((d) => { if (d.enrollment) delete d.enrollment[subj.id]; return d; });
-          toast("✅ Enrollment cleared — subject now open to all eligible students.");
-        }
+      {/* ══ PROMOTION MODAL ══ */}
+      {promotionModal && (
+        <PromotionModal
+          db={db}
+          updateDB={updateDB}
+          toast={toast}
+          termLabel={termLabel}
+          onClose={() => setPromotionModal(false)}
+        />
+      )}
 
-        return (
-          <Modal title={`👥 Enroll Students — ${subj.name}`} onClose={() => setEnrollModal(null)}>
-            <div style={{ padding: "0 0 4px" }}>
-              <div style={{ background: "#f0f9ff", border: "1.5px solid #bae6fd", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#0c4a6e" }}>
-                ℹ️ Tick the students who take <strong>{subj.name}</strong>. Unticked students won't appear in the teacher's score entry for this subject. Leave all unticked to allow all eligible students (default behaviour).
-              </div>
-
-              {db.students.length === 0 ? (
-                <p style={{ color: "#94a3b8", fontSize: 13 }}>No students added yet.</p>
-              ) : (
-                <>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-                    <button onClick={clearEnrollment} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", color: "#64748b" }}>
-                      🔓 Open to all (clear enrollment)
-                    </button>
-                  </div>
-                  <div style={{ maxHeight: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-                    {sortedClasses.map((cls) => {
-                      const classIds  = byClass[cls].map((s) => s.id);
-                      const allIn     = enrolled.length > 0 && classIds.every((id) => enrolled.includes(id));
-                      const someIn    = !allIn && enrolled.length > 0 && classIds.some((id) => enrolled.includes(id));
-                      return (
-                        <div key={cls}>
-                          {/* Class header with select-all toggle */}
-                          <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "#0f172a", borderRadius: "8px 8px 0 0", cursor: "pointer" }}>
-                            <input type="checkbox" checked={allIn} ref={(el) => { if (el) el.indeterminate = someIn; }}
-                              onChange={() => toggleClass(cls)} style={{ accentColor: "#f59e0b", width: 15, height: 15 }} />
-                            <span style={{ fontWeight: 700, fontSize: 13, color: "#fff" }}>{cls}</span>
-                            <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: "auto" }}>
-                              {enrolled.length > 0 ? `${classIds.filter((id) => enrolled.includes(id)).length}/${classIds.length}` : `0/${classIds.length} (open)`}
-                            </span>
-                          </label>
-                          {/* Student checkboxes */}
-                          <div style={{ border: "1.5px solid #e2e8f0", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
-                            {byClass[cls].map((s) => {
-                              const checked = enrolled.length > 0 && enrolled.includes(s.id);
-                              return (
-                                <label key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
-                                  <input type="checkbox" checked={checked} onChange={() => toggle(s.id)}
-                                    style={{ accentColor: "#0d9488", width: 14, height: 14 }} />
-                                  <span style={{ fontSize: 13, color: checked ? "#0f172a" : "#64748b", fontWeight: checked ? 600 : 400 }}>
-                                    {s.name}
-                                    {s.stream ? <span style={{ marginLeft: 6, fontSize: 10, padding: "1px 6px", borderRadius: 10, fontWeight: 700,
-                                      background: s.stream==="Science"?"#dbeafe":s.stream==="Arts"?"#d1fae5":"#fef3c7",
-                                      color: s.stream==="Science"?"#1d4ed8":s.stream==="Arts"?"#065f46":"#92400e" }}>{s.stream}</span> : null}
-                                  </span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 12, textAlign: "center" }}>
-                    Changes save instantly. Close when done.
-                  </p>
-                </>
-              )}
-            </div>
-          </Modal>
-        );
-      })()}
-
-      {/* Edit Subject */}
+      {/* Edit Subject */}      {/* Edit Subject */}
       <Modal open={!!editSubjectModal} onClose={() => { setEditSubjectModal(null); setNewSubject(""); setNewSubjectSection("JSS"); setNewSubjectStreams([]); }} title={`✏️ Edit Subject — ${editSubjectModal?.name || ""}`}>
         <div className={styles.modalForm}>
           <Input label="Subject Name" value={newSubject} onChange={(e) => setNewSubject(e.target.value)} placeholder="e.g. Mathematics" />
@@ -1509,5 +1453,217 @@ function SchoolProfileTab({ school, toast }) {
         </button>
       </div>
     </div>
+  );
+}
+
+// ─── EnrollModal ──────────────────────────────────────────────────────────────
+function EnrollModal({ subject, db, updateDB, toast, onClose }) {
+  const enrolled   = (db.enrollment || {})[subject.id] || [];
+
+  // Group all students by class
+  const byClass = {};
+  (db.students || []).forEach((s) => {
+    if (!byClass[s.class]) byClass[s.class] = [];
+    byClass[s.class].push(s);
+  });
+  const sortedClasses = Object.keys(byClass).sort();
+
+  function toggle(sid) {
+    updateDB((d) => {
+      if (!d.enrollment) d.enrollment = {};
+      const cur = [...(d.enrollment[subject.id] || [])];
+      const idx = cur.indexOf(sid);
+      if (idx !== -1) cur.splice(idx, 1);
+      else cur.push(sid);
+      d.enrollment[subject.id] = cur;
+      return d;
+    });
+  }
+
+  function toggleClass(cls) {
+    const classIds = byClass[cls].map((s) => s.id);
+    const cur      = (db.enrollment || {})[subject.id] || [];
+    const allIn    = classIds.every((id) => cur.includes(id));
+    updateDB((d) => {
+      if (!d.enrollment) d.enrollment = {};
+      const existing = [...(d.enrollment[subject.id] || [])];
+      d.enrollment[subject.id] = allIn
+        ? existing.filter((id) => !classIds.includes(id))
+        : [...new Set([...existing, ...classIds])];
+      return d;
+    });
+  }
+
+  function clearAll() {
+    updateDB((d) => { if (d.enrollment) delete d.enrollment[subject.id]; return d; });
+    toast("✅ Enrollment cleared — subject now open to all eligible students.");
+  }
+
+  const STREAM_STYLE = {
+    Science:    { bg:"#dbeafe", color:"#1d4ed8" },
+    Arts:       { bg:"#d1fae5", color:"#065f46" },
+    Commercial: { bg:"#fef3c7", color:"#92400e" },
+  };
+
+  return (
+    <Modal title={`👥 Enroll Students — ${subject.name}`} onClose={onClose}>
+      <div style={{ padding:"0 0 4px" }}>
+        <div style={{ background:"#f0f9ff", border:"1.5px solid #bae6fd", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#0c4a6e" }}>
+          ℹ️ Tick the students who take <strong>{subject.name}</strong>. Unticked students won't appear in the teacher's score entry. Leave all unticked to allow all eligible students (default).
+        </div>
+        {db.students.length === 0 ? (
+          <p style={{ color:"#94a3b8", fontSize:13 }}>No students added yet.</p>
+        ) : (
+          <>
+            <button onClick={clearAll} style={{ fontSize:12, padding:"5px 12px", borderRadius:8, border:"1.5px solid #e2e8f0", background:"#f8fafc", cursor:"pointer", color:"#64748b", marginBottom:14 }}>
+              🔓 Open to all (clear enrollment)
+            </button>
+            <div style={{ maxHeight:400, overflowY:"auto", display:"flex", flexDirection:"column", gap:14 }}>
+              {sortedClasses.map((cls) => {
+                const classIds = byClass[cls].map((s) => s.id);
+                const cur      = (db.enrollment || {})[subject.id] || [];
+                const allIn    = cur.length > 0 && classIds.every((id) => cur.includes(id));
+                const someIn   = !allIn && cur.length > 0 && classIds.some((id) => cur.includes(id));
+                return (
+                  <div key={cls}>
+                    <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", background:"#0f172a", borderRadius:"8px 8px 0 0", cursor:"pointer" }}>
+                      <input type="checkbox" checked={allIn}
+                        ref={(el) => { if (el) el.indeterminate = someIn; }}
+                        onChange={() => toggleClass(cls)}
+                        style={{ accentColor:"#f59e0b", width:15, height:15 }} />
+                      <span style={{ fontWeight:700, fontSize:13, color:"#fff" }}>{cls}</span>
+                      <span style={{ fontSize:11, color:"#94a3b8", marginLeft:"auto" }}>
+                        {cur.length > 0 ? `${classIds.filter((id) => cur.includes(id)).length}/${classIds.length}` : `0/${classIds.length} (open)`}
+                      </span>
+                    </label>
+                    <div style={{ border:"1.5px solid #e2e8f0", borderTop:"none", borderRadius:"0 0 8px 8px", padding:"8px 10px", display:"flex", flexDirection:"column", gap:5 }}>
+                      {byClass[cls].map((s) => {
+                        const curEnrolled = (db.enrollment || {})[subject.id] || [];
+                        const checked = curEnrolled.length > 0 && curEnrolled.includes(s.id);
+                        const ss = STREAM_STYLE[s.stream];
+                        return (
+                          <label key={s.id} style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", padding:"3px 0" }}>
+                            <input type="checkbox" checked={checked} onChange={() => toggle(s.id)}
+                              style={{ accentColor:"#0d9488", width:14, height:14 }} />
+                            <span style={{ fontSize:13, color: checked ? "#0f172a" : "#64748b", fontWeight: checked ? 600 : 400 }}>
+                              {s.name}
+                              {ss && <span style={{ marginLeft:6, fontSize:10, padding:"1px 6px", borderRadius:10, fontWeight:700, background:ss.bg, color:ss.color }}>{s.stream}</span>}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p style={{ fontSize:11, color:"#94a3b8", marginTop:12, textAlign:"center" }}>Changes save instantly. Close when done.</p>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ─── PromotionModal ───────────────────────────────────────────────────────────
+function PromotionModal({ db, updateDB, toast, termLabel, onClose }) {
+  const promotion  = db.promotion || {};
+  const byClass    = {};
+  (db.students || []).forEach((s) => {
+    if (!byClass[s.class]) byClass[s.class] = [];
+    byClass[s.class].push(s);
+  });
+  const sortedClasses = Object.keys(byClass).sort();
+
+  function isPromoted(sid) {
+    // Default to true (promoted) unless explicitly set to false
+    return promotion[sid] !== false;
+  }
+
+  function toggle(sid) {
+    updateDB((d) => {
+      if (!d.promotion) d.promotion = {};
+      d.promotion[sid] = !isPromoted(sid);
+      return d;
+    });
+  }
+
+  function promoteAll(cls) {
+    updateDB((d) => {
+      if (!d.promotion) d.promotion = {};
+      byClass[cls].forEach((s) => { d.promotion[s.id] = true; });
+      return d;
+    });
+  }
+  function failAll(cls) {
+    updateDB((d) => {
+      if (!d.promotion) d.promotion = {};
+      byClass[cls].forEach((s) => { d.promotion[s.id] = false; });
+      return d;
+    });
+  }
+
+  function getNextLabel(cls) {
+    const m = cls.trim().match(/^(JSS|SSS)\s+(\d+)([A-Za-z]?)$/i);
+    if (!m) return "?";
+    const sec = m[1].toUpperCase(), num = parseInt(m[2]), suf = m[3] || "";
+    if (sec === "JSS") return num < 3 ? `JSS ${num+1}${suf}` : `SSS 1${suf}`;
+    return num < 3 ? `SSS ${num+1}${suf}` : "Graduate 🎓";
+  }
+
+  const isSSS3 = (cls) => /^SSS\s+3/i.test(cls);
+
+  return (
+    <Modal title="🎓 End-of-Year Promotions" onClose={onClose}>
+      <div style={{ padding:"0 0 4px" }}>
+        <div style={{ background:"#fef3c7", border:"1.5px solid #f59e0b", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#78350f" }}>
+          ⚠️ Review promotion decisions below. These take effect when you click <strong>📦 End of Term</strong> for <strong>{termLabel}</strong>. Promoted students automatically move to their next class; others repeat the year.
+        </div>
+        {db.students.length === 0 ? (
+          <p style={{ color:"#94a3b8", fontSize:13 }}>No students yet.</p>
+        ) : (
+          <div style={{ maxHeight:460, overflowY:"auto", display:"flex", flexDirection:"column", gap:16 }}>
+            {sortedClasses.map((cls) => (
+              <div key={cls}>
+                {/* Class header */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", background:"#0f172a", borderRadius:"8px 8px 0 0" }}>
+                  <span style={{ fontWeight:700, fontSize:13, color:"#fff", flex:1 }}>{cls}</span>
+                  {!isSSS3(cls) && <span style={{ fontSize:11, color:"#94a3b8" }}>→ {getNextLabel(cls)}</span>}
+                  {isSSS3(cls) && <span style={{ fontSize:11, color:"#f59e0b", fontWeight:700 }}>Final Year</span>}
+                  <button onClick={() => promoteAll(cls)} style={{ fontSize:11, padding:"2px 8px", borderRadius:6, border:"none", background:"#059669", color:"#fff", cursor:"pointer" }}>All ✓</button>
+                  <button onClick={() => failAll(cls)}    style={{ fontSize:11, padding:"2px 8px", borderRadius:6, border:"none", background:"#dc2626", color:"#fff", cursor:"pointer" }}>All ✗</button>
+                </div>
+                {/* Students */}
+                <div style={{ border:"1.5px solid #e2e8f0", borderTop:"none", borderRadius:"0 0 8px 8px", padding:"8px 12px", display:"flex", flexDirection:"column", gap:4 }}>
+                  {byClass[cls].map((s) => {
+                    const promoted = isPromoted(s.id);
+                    return (
+                      <div key={s.id} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ flex:1, fontSize:13, color:"#0f172a", fontWeight:500 }}>{s.name}</span>
+                        {s.stream && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:10, fontWeight:700,
+                          background: s.stream==="Science"?"#dbeafe":s.stream==="Arts"?"#d1fae5":"#fef3c7",
+                          color:      s.stream==="Science"?"#1d4ed8":s.stream==="Arts"?"#065f46":"#92400e" }}>{s.stream}</span>}
+                        <button onClick={() => toggle(s.id)} style={{
+                          padding:"3px 14px", borderRadius:20, border:"none", cursor:"pointer", fontSize:12, fontWeight:700,
+                          background: isSSS3(cls) ? "#7c3aed" : promoted ? "#059669" : "#dc2626",
+                          color:"#fff",
+                        }}>
+                          {isSSS3(cls) ? "🎓 Graduating" : promoted ? "✓ Promoted" : "✗ Repeat"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display:"flex", justifyContent:"flex-end", marginTop:16 }}>
+          <Button variant="emerald" onClick={() => { toast("✅ Promotion decisions saved."); onClose(); }}>
+            💾 Save Decisions
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }

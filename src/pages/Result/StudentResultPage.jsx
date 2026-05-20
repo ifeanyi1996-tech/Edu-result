@@ -83,7 +83,11 @@ export default function StudentResultPage({ schoolId, studentId }) {
   const position = myRank?.pos ?? "—";
   const total    = ranked.length;
 
-  const info     = (db.studentInfo || {})[studentId] || {};
+  const info       = (db.studentInfo || {})[studentId] || {};
+  const termNames  = ["First Term", "Second Term", "Third Term"];
+  const termLabel  = db.currentTerm
+    ? `${termNames[(db.currentTerm.term || 1) - 1]} ${db.currentTerm.year}`
+    : (info.term || "—");
   const staffC   = (db.staffComments || {})[studentId] || {};
   const affData  = (db.affective || {})[studentId] || {};
   const subjects = getSubjectsForClass(db.subjects || [], student.class, student.stream);
@@ -156,7 +160,7 @@ export default function StudentResultPage({ schoolId, studentId }) {
           <tr>
             <td style={styles.infoCell}><b>Form Position:</b> {position}</td>
             <td style={styles.infoCell}><b>Out of:</b> {total}</td>
-            <td style={{ ...styles.infoCell, borderRight: "none" }} colSpan={2}><b>Term:</b> {info.term || "—"}</td>
+            <td style={{ ...styles.infoCell, borderRight: "none" }} colSpan={2}><b>Term:</b> {termLabel}</td>
           </tr>
         </tbody>
       </table>

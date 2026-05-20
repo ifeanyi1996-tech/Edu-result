@@ -29,6 +29,8 @@ export function defaultDB() {
     staffComments:    {},
     roles: { formMaster: "", houseMistress: "", principal: "", formMasters: {} },
     enrollment: {},   // enrollment[subjectId] = [studentId, ...] — optional; empty = all eligible students
+    currentTerm: { term: 1, year: "2025/2026" }, // term: 1|2|3
+    promotion:   {},  // promotion[studentId] = true|false  (filled at end of Term 3)
   };
 }
 
@@ -42,6 +44,8 @@ function normalise(parsed) {
   if (!parsed.roles)          parsed.roles          = { formMaster:"", houseMistress:"", principal:"", formMasters:{} };
   if (!parsed.roles.formMasters) parsed.roles.formMasters = {};
   if (!parsed.enrollment)      parsed.enrollment      = {};
+  if (!parsed.currentTerm)     parsed.currentTerm     = { term: 1, year: "2025/2026" };
+  if (!parsed.promotion)       parsed.promotion       = {};
   if (!parsed.scores)         parsed.scores         = {};
   if (!parsed.students)       parsed.students       = [];
   if (!parsed.teachers)       parsed.teachers       = [];
@@ -141,23 +145,71 @@ export async function fetchArchivedTerms() {
   }
 }
 
+// ── Get the next class for a promoted student ─────────────────────────────────
+// Handles patterns like "JSS 1", "SSS 2A", "JSS 3B"
+// Returns null for SSS 3 graduates.
+export function getNextClass(cls) {
+  if (!cls) return cls;
+  const m = cls.trim().match(/^(JSS|SSS)\s+(\d+)([A-Za-z]?)$/i);
+  if (!m) return cls; // unrecognised format — leave as-is
+  const section = m[1].toUpperCase();
+  const num     = parseInt(m[2], 10);
+  const suffix  = m[3] || "";
+  if (section === "JSS") {
+    return num < 3 ? `JSS ${num + 1}${suffix}` : `SSS 1${suffix}`;
+  } else {
+    return num < 3 ? `SSS ${num + 1}${suffix}` : null; // null = graduated
+  }
+}
+
 // ── Reset DB for a new term ────────────────────────────────────────────────────
 // Keeps: students, teachers, subjects, studentInfo (admNo, sex, passport)
 // Clears: scores, teacherComments, affective, staffComments, locked
 export function buildResetDB(db) {
-  // Strip 'term' text from studentInfo so admin fills in new term per student
   const cleanedInfo = {};
   Object.entries(db.studentInfo || {}).forEach(([id, info]) => {
     cleanedInfo[id] = { admNo: info.admNo || "", sex: info.sex || "", passport: info.passport || "", term: "" };
   });
 
+  const currentTerm = db.currentTerm || { term: 1, year: "2025/2026" };
+  const isEndOfYear = currentTerm.term === 3;
+
+  // Advance term counter
+  let nextTerm;
+  if (isEndOfYear) {
+    // Roll to Term 1 of the next academic year
+    const parts = currentTerm.year.match(/(\d{4})\/(\d{4})/);
+    const nextYear = parts
+      ? `${parseInt(parts[2])}/${parseInt(parts[2]) + 1}`
+      : currentTerm.year;
+    nextTerm = { term: 1, year: nextYear };
+  } else {
+    nextTerm = { ...currentTerm, term: currentTerm.term + 1 };
+  }
+
+  // Apply promotions when rolling over from Term 3
+  let students = db.students || [];
+  if (isEndOfYear && db.promotion && Object.keys(db.promotion).length > 0) {
+    students = students.map((s) => {
+      const decision = db.promotion[s.id];
+      if (decision === true) {
+        const next = getNextClass(s.class);
+        return next ? { ...s, class: next } : { ...s, class: s.class, graduated: true };
+      }
+      return s; // not promoted — stays in same class
+    }).filter((s) => !s.graduated); // remove graduates
+  }
+
   return {
     ...db,
+    students,
     scores:          {},
     teacherComments: {},
     affective:       {},
     staffComments:   {},
     locked:          false,
     studentInfo:     cleanedInfo,
+    currentTerm:     nextTerm,
+    promotion:       {},  // clear promotions for next cycle
   };
 }
