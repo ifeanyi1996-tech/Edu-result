@@ -1078,7 +1078,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
         />
       )}
 
-      {/* Edit Subject */}      {/* Edit Subject */}
+      {/* Edit Subject */}
       <Modal open={!!editSubjectModal} onClose={() => { setEditSubjectModal(null); setNewSubject(""); setNewSubjectSection("JSS"); setNewSubjectStreams([]); }} title={`✏️ Edit Subject — ${editSubjectModal?.name || ""}`}>
         <div className={styles.modalForm}>
           <Input label="Subject Name" value={newSubject} onChange={(e) => setNewSubject(e.target.value)} placeholder="e.g. Mathematics" />
@@ -1506,7 +1506,7 @@ function EnrollModal({ subject, db, updateDB, toast, onClose }) {
   };
 
   return (
-    <Modal title={`👥 Enroll Students — ${subject.name}`} onClose={onClose}>
+    <Modal open={true} title={`👥 Enroll Students — ${subject.name}`} onClose={onClose}>
       <div style={{ padding:"0 0 4px" }}>
         <div style={{ background:"#f0f9ff", border:"1.5px solid #bae6fd", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#0c4a6e" }}>
           ℹ️ Tick the students who take <strong>{subject.name}</strong>. Unticked students won't appear in the teacher's score entry. Leave all unticked to allow all eligible students (default).
@@ -1614,7 +1614,7 @@ function PromotionModal({ db, updateDB, toast, termLabel, onClose }) {
   const isSSS3 = (cls) => /^SSS\s+3/i.test(cls);
 
   return (
-    <Modal title="🎓 End-of-Year Promotions" onClose={onClose}>
+    <Modal open={true} title="🎓 End-of-Year Promotions" onClose={onClose}>
       <div style={{ padding:"0 0 4px" }}>
         <div style={{ background:"#fef3c7", border:"1.5px solid #f59e0b", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#78350f" }}>
           ⚠️ Review promotion decisions below. These take effect when you click <strong>📦 End of Term</strong> for <strong>{termLabel}</strong>. Promoted students automatically move to their next class; others repeat the year.
