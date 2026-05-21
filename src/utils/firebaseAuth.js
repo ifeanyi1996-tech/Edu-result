@@ -130,6 +130,8 @@ export async function firebaseTeacherLogin(teacher) {
         return { ok: false, message: "Could not create teacher account: " + ce.message };
       }
     }
+    if (err.code === "auth/user-disabled")
+      return { ok: false, message: "This teacher account has been disabled. Ask your admin to re-enable it in the Firebase console." };
     if (err.code === "auth/network-request-failed")
       return { ok: false, message: "Network error. Check your connection." };
     return { ok: false, message: "Sign-in failed: " + err.message };
