@@ -88,6 +88,9 @@ export default function StudentResultPage({ schoolId, studentId }) {
   const termLabel  = db.currentTerm
     ? `${termNames[(db.currentTerm.term || 1) - 1]} ${db.currentTerm.year}`
     : (info.term || "—");
+  const schoolDays    = db.schoolDays || 0;
+  const daysPresent   = (db.attendance || {})[studentId];
+  const hasAttendance = schoolDays > 0 || daysPresent !== undefined;
   const staffC   = (db.staffComments || {})[studentId] || {};
   const affData  = (db.affective || {})[studentId] || {};
   const subjects = getSubjectsForClass(db.subjects || [], student.class, student.stream);
@@ -162,6 +165,15 @@ export default function StudentResultPage({ schoolId, studentId }) {
             <td style={styles.infoCell}><b>Out of:</b> {total}</td>
             <td style={{ ...styles.infoCell, borderRight: "none" }} colSpan={2}><b>Term:</b> {termLabel}</td>
           </tr>
+          {hasAttendance && (
+          <tr>
+            <td style={styles.infoCell}><b>Days School Opened:</b> {schoolDays || "—"}</td>
+            <td style={styles.infoCell}><b>Days Present:</b> {daysPresent !== undefined ? daysPresent : "—"}</td>
+            <td style={{ ...styles.infoCell, borderRight: "none" }} colSpan={2}>
+              <b>Days Absent:</b> {daysPresent !== undefined && schoolDays ? schoolDays - daysPresent : "—"}
+            </td>
+          </tr>
+          )}
         </tbody>
       </table>
 

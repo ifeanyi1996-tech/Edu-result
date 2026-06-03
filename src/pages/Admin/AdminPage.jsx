@@ -36,6 +36,9 @@ export default function AdminPage({ toast, school = {} }) {
   const [editSubjectModal, setEditSubjectModal] = useState(null); // subject object being edited
   const [enrollModal,      setEnrollModal]      = useState(null); // subject being enrolled
   const [dragIdx,          setDragIdx]          = useState(null);
+  const [attendanceModal,  setAttendanceModal]  = useState(false);
+  const [schoolDaysDraft,  setSchoolDaysDraft]  = useState(0);
+  const [attendanceDraft,  setAttendanceDraft]  = useState({}); // { studentId: days }
   const [promotionModal,   setPromotionModal]   = useState(false);
   const [editTeacherModal, setEditTeacherModal] = useState(null); // teacher object being edited
   const [editStudentModal, setEditStudentModal] = useState(null); // student object
@@ -423,6 +426,7 @@ export default function AdminPage({ toast, school = {} }) {
             <td><span class="info-label">Out of: </span><span class="info-val">${totalStudents}</span></td>
             <td colspan="2"><span class="info-label">Term: </span><span class="info-val">${termLabel}</span></td>
           </tr>
+          ${(() => { const sd = db.schoolDays || 0; const dp = (db.attendance||{})[student.id]; if (!sd && dp === undefined) return ""; return `<tr><td><span class="info-label">Days Opened: </span><span class="info-val">${sd||"—"}</span></td><td><span class="info-label">Days Present: </span><span class="info-val">${dp !== undefined ? dp : "—"}</span></td><td colspan="2"><span class="info-label">Days Absent: </span><span class="info-val">${dp !== undefined && sd ? sd - dp : "—"}</span></td></tr>`; })()}
         </table>
 
         <!-- ══ COGNITIVE DOMAIN ══ -->
@@ -610,17 +614,24 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                   <option value="">All Classes</option>
                   {classes.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
+                <Button size="sm" variant="sky" onClick={() => {
+                  setSchoolDaysDraft(db.schoolDays || 0);
+                  const draft = {};
+                  db.students.forEach((s) => { draft[s.id] = (db.attendance || {})[s.id] ?? ""; });
+                  setAttendanceDraft(draft);
+                  setAttendanceModal(true);
+                }}>📅 Attendance</Button>
                 <Button size="sm" onClick={() => setStudentModal(true)}>➕ Add Student</Button>
               </div>
             </div>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
-                  <tr><th>#</th><th>Student Name</th><th>Class</th><th>Stream</th><th>Adm No.</th><th>Sex</th><th>Term</th><th>Result Link</th><th>Actions</th></tr>
+                  <tr><th>#</th><th>Student Name</th><th>Class</th><th>Stream</th><th>Adm No.</th><th>Sex</th><th>Term</th><th>Days Present</th><th>Result Link</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {!filteredStudents.length ? (
-                    <tr><td colSpan={9} className={styles.emptyCell}>No students yet. Add one above.</td></tr>
+                    <tr><td colSpan={10} className={styles.emptyCell}>No students yet. Add one above.</td></tr>
                   ) : filteredStudents.map((s, i) => {
                     const info = (db.studentInfo || {})[s.id] || {};
                     const schoolUid = localStorage.getItem("schoolUid") || "";
@@ -644,6 +655,11 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                         <td className={styles.muted}>{info.admNo || <em>—</em>}</td>
                         <td className={styles.muted}>{info.sex || <em>—</em>}</td>
                         <td className={styles.muted}>{termLabel}</td>
+                        <td className={styles.muted} style={{ textAlign:"center" }}>
+                          {(db.attendance || {})[s.id] !== undefined && (db.attendance || {})[s.id] !== ""
+                            ? <span style={{ fontWeight:700, color:"#0f172a" }}>{(db.attendance || {})[s.id]}<span style={{ fontWeight:400, color:"#94a3b8", fontSize:11 }}>/{db.schoolDays || "?"}</span></span>
+                            : <em style={{ fontSize:11 }}>—</em>}
+                        </td>
                         <td>
                           {resultUrl ? (
                             <Button
@@ -843,6 +859,102 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
       )}
 
       {/* ──────────────── MODALS ──────────────── */}
+
+      {/* ══ ATTENDANCE MODAL ══ */}
+      {attendanceModal && (
+        <Modal open={true} title="📅 Attendance" onClose={() => setAttendanceModal(false)}>
+          <div style={{ padding: "0 0 4px" }}>
+            {/* School days open */}
+            <div style={{ background:"#f0f9ff", border:"1.5px solid #bae6fd", borderRadius:10, padding:"12px 16px", marginBottom:18 }}>
+              <label style={{ fontWeight:700, fontSize:13, color:"#0f172a", display:"block", marginBottom:8 }}>
+                📆 Number of Days School Was Open This Term
+              </label>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <input
+                  type="number" min={0} max={365}
+                  value={schoolDaysDraft}
+                  onChange={(e) => setSchoolDaysDraft(Number(e.target.value))}
+                  style={{ width:100, padding:"8px 12px", borderRadius:8, border:"1.5px solid #bae6fd", fontSize:15, fontWeight:700, fontFamily:"inherit", textAlign:"center" }}
+                />
+                <span style={{ fontSize:13, color:"#64748b" }}>days</span>
+              </div>
+            </div>
+
+            {/* Per-student attendance */}
+            <label style={{ fontWeight:700, fontSize:13, color:"#0f172a", display:"block", marginBottom:10 }}>
+              👤 Days Each Student Was Present
+            </label>
+            {(() => {
+              // Group by class for readability
+              const byClass = {};
+              const visibleStudents = classFilter
+                ? db.students.filter(s => s.class === classFilter)
+                : db.students;
+              visibleStudents.forEach((s) => {
+                if (!byClass[s.class]) byClass[s.class] = [];
+                byClass[s.class].push(s);
+              });
+              return (
+                <div style={{ maxHeight:420, overflowY:"auto", display:"flex", flexDirection:"column", gap:14 }}>
+                  {Object.keys(byClass).sort().map((cls) => (
+                    <div key={cls}>
+                      <div style={{ fontWeight:700, fontSize:12, color:"#fff", background:"#0f172a", borderRadius:"8px 8px 0 0", padding:"6px 12px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span>{cls}</span>
+                        {/* Quick-fill all with school days */}
+                        <button
+                          onClick={() => {
+                            setAttendanceDraft((prev) => {
+                              const updated = { ...prev };
+                              byClass[cls].forEach((s) => { updated[s.id] = schoolDaysDraft; });
+                              return updated;
+                            });
+                          }}
+                          style={{ fontSize:11, padding:"2px 8px", borderRadius:6, border:"none", background:"rgba(255,255,255,0.15)", color:"#fff", cursor:"pointer" }}
+                        >Fill all with {schoolDaysDraft || "?"}</button>
+                      </div>
+                      <div style={{ border:"1.5px solid #e2e8f0", borderTop:"none", borderRadius:"0 0 8px 8px", padding:"8px 12px", display:"flex", flexDirection:"column", gap:6 }}>
+                        {byClass[cls].map((s) => (
+                          <div key={s.id} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <span style={{ flex:1, fontSize:13, color:"#0f172a", fontWeight:500 }}>{s.name}</span>
+                            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                              <input
+                                type="number" min={0} max={schoolDaysDraft || 365}
+                                value={attendanceDraft[s.id] ?? ""}
+                                onChange={(e) => setAttendanceDraft((prev) => ({ ...prev, [s.id]: e.target.value === "" ? "" : Number(e.target.value) }))}
+                                style={{ width:72, padding:"5px 10px", borderRadius:8, border:"1.5px solid #e2e8f0", fontSize:13, fontWeight:700, fontFamily:"inherit", textAlign:"center" }}
+                                placeholder="—"
+                              />
+                              <span style={{ fontSize:12, color:"#94a3b8" }}>/ {schoolDaysDraft || "?"}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <div style={{ display:"flex", justifyContent:"flex-end", gap:10, marginTop:20 }}>
+              <Button variant="outline" onClick={() => setAttendanceModal(false)}>Cancel</Button>
+              <Button variant="emerald" onClick={() => {
+                // Clean draft — drop empty strings, keep 0s
+                const clean = {};
+                Object.entries(attendanceDraft).forEach(([id, val]) => {
+                  if (val !== "" && val !== undefined) clean[id] = Number(val);
+                });
+                updateDB((d) => {
+                  d.schoolDays = schoolDaysDraft;
+                  d.attendance = clean;
+                  return d;
+                });
+                setAttendanceModal(false);
+                toast("✅ Attendance saved.");
+              }}>💾 Save Attendance</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Add Student */}
       <Modal open={studentModal} onClose={() => setStudentModal(false)} title="Add New Student">

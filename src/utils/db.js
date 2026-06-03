@@ -31,6 +31,8 @@ export function defaultDB() {
     enrollment: {},   // enrollment[subjectId] = [studentId, ...] — optional; empty = all eligible students
     currentTerm: { term: 1, year: "2025/2026" }, // term: 1|2|3
     promotion:   {},  // promotion[studentId] = true|false  (filled at end of Term 3)
+    schoolDays:  0,   // number of days school was open this term
+    attendance:  {},  // attendance[studentId] = number of days present
   };
 }
 
@@ -46,6 +48,8 @@ function normalise(parsed) {
   if (!parsed.enrollment)      parsed.enrollment      = {};
   if (!parsed.currentTerm)     parsed.currentTerm     = { term: 1, year: "2025/2026" };
   if (!parsed.promotion)       parsed.promotion       = {};
+  if (parsed.schoolDays === undefined) parsed.schoolDays = 0;
+  if (!parsed.attendance)      parsed.attendance      = {};
   if (!parsed.scores)         parsed.scores         = {};
   if (!parsed.students)       parsed.students       = [];
   if (!parsed.teachers)       parsed.teachers       = [];
@@ -211,5 +215,7 @@ export function buildResetDB(db) {
     studentInfo:     cleanedInfo,
     currentTerm:     nextTerm,
     promotion:       {},  // clear promotions for next cycle
+    schoolDays:      0,   // reset for new term
+    attendance:      {},  // reset for new term
   };
 }
