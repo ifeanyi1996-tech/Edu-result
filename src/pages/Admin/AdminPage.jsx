@@ -543,8 +543,29 @@ export default function AdminPage({ toast, school = {} }) {
         <div className={styles.headerActions}>
           {/* ── Current term indicator ── */}
           <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background:"#f0f9ff", border:"1.5px solid #7dd3fc", borderRadius:10, fontSize:13 }}>
-            <span style={{ fontWeight:700, color:"#0369a1" }}>📅 {termLabel}</span>
+            {/* ◀ go back one term */}
             <button
+              title="Go back one term"
+              onClick={() => {
+                const t = db.currentTerm || { term:1, year:"2025/2026" };
+                const prevYear = (() => {
+                  const m = t.year.match(/(\d{4})\/(\d{4})/);
+                  return m ? `${parseInt(m[1])-1}/${parseInt(m[1])}` : t.year;
+                })();
+                const prev = t.term > 1 ? { ...t, term: t.term-1 } : { term:3, year:prevYear };
+                if (window.confirm(`Go back to ${TERM_NAMES[prev.term-1]} ${prev.year}?
+
+This only updates the term label.`)) {
+                  updateDB((d) => { d.currentTerm = prev; return d; });
+                  toast(`📅 Term set back to ${TERM_NAMES[prev.term-1]} ${prev.year}`);
+                }
+              }}
+              style={{ fontSize:13, padding:"1px 7px", borderRadius:6, border:"1px solid #7dd3fc", background:"#fff", cursor:"pointer", color:"#0369a1", lineHeight:1.6 }}
+            >◀</button>
+            <span style={{ fontWeight:700, color:"#0369a1" }}>📅 {termLabel}</span>
+            {/* ▶ go forward one term */}
+            <button
+              title="Advance one term"
               onClick={() => {
                 const t = db.currentTerm || { term:1, year:"2025/2026" };
                 const newYear = (() => {
@@ -559,8 +580,8 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                   toast(`📅 Term updated to ${TERM_NAMES[next.term-1]} ${next.year}`);
                 }
               }}
-              style={{ fontSize:11, padding:"2px 8px", borderRadius:6, border:"1px solid #7dd3fc", background:"#fff", cursor:"pointer", color:"#0369a1" }}
-            >Change</button>
+              style={{ fontSize:13, padding:"1px 7px", borderRadius:6, border:"1px solid #7dd3fc", background:"#fff", cursor:"pointer", color:"#0369a1", lineHeight:1.6 }}
+            >▶</button>
           </div>
           <Button variant="outline" onClick={openRoles}>👥 Assign Roles</Button>
           {isThirdTerm && (
