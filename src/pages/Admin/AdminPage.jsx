@@ -65,7 +65,8 @@ export default function AdminPage({ toast, school = {} }) {
   const [newSubjectStreams, setNewSubjectStreams] = useState([]); // [] = all streams
 
   // Edit student info form
-  const [editInfo, setEditInfo] = useState({ admNo: "", sex: "", passport: "", stream: "" });
+  const [editInfo,        setEditInfo]        = useState({ name: "", admNo: "", sex: "", passport: "", stream: "" });
+  const [editStudentName, setEditStudentName] = useState(false); // separate quick-rename modal
 
   // Affective draft
   const [affDraft, setAffDraft] = useState({});
@@ -212,7 +213,7 @@ export default function AdminPage({ toast, school = {} }) {
   // ── Edit student info ───────────────────────────────────────────────
   function openEditStudent(student) {
     const info = (db.studentInfo || {})[student.id] || {};
-    setEditInfo({ admNo: info.admNo || "", sex: info.sex || "", passport: info.passport || "", stream: student.stream || "" });
+    setEditInfo({ name: student.name || "", admNo: info.admNo || "", sex: info.sex || "", passport: info.passport || "", stream: student.stream || "" });
     setEditStudentModal(student);
   }
   function saveStudentInfo() {
@@ -220,7 +221,10 @@ export default function AdminPage({ toast, school = {} }) {
       if (!d.studentInfo) d.studentInfo = {};
       d.studentInfo[editStudentModal.id] = { admNo: editInfo.admNo, sex: editInfo.sex, passport: editInfo.passport || "" };
       const stuIdx = d.students.findIndex((s) => s.id === editStudentModal.id);
-      if (stuIdx !== -1) d.students[stuIdx].stream = editInfo.stream || "";
+      if (stuIdx !== -1) {
+        if (editInfo.name.trim()) d.students[stuIdx].name = editInfo.name.trim();
+        d.students[stuIdx].stream = editInfo.stream || "";
+      }
       return d;
     });
     setEditStudentModal(null);
@@ -1017,6 +1021,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
       {/* Edit Student Info */}
       <Modal open={!!editStudentModal} onClose={() => setEditStudentModal(null)} title={`Edit Info — ${editStudentModal?.name || ""}`}>
         <div className={styles.modalForm}>
+          <Input label="Student Name" value={editInfo.name} onChange={(e) => setEditInfo((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Adaeze Okonkwo" />
           <Input label="Admission Number" value={editInfo.admNo} onChange={(e) => setEditInfo((p) => ({ ...p, admNo: e.target.value }))} placeholder="e.g. FP/2024/001" />
           <SelectField label="Sex" value={editInfo.sex} onChange={(e) => setEditInfo((p) => ({ ...p, sex: e.target.value }))}>
             <option value="">— Select —</option>
