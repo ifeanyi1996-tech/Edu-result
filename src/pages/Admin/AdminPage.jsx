@@ -356,19 +356,29 @@ export default function AdminPage({ toast, school = {} }) {
       let subjectRows = "";
       let grandTotal = 0;
 
+      // Build teacher signature lookup: subjectId → signature data URL
+      const printTeacherSig = {};
+      (db.teachers || []).forEach((t) => {
+        const ids = Array.isArray(t.subjects) ? t.subjects : (t.subject ? [t.subject] : []);
+        const sig = (db.teacherSignatures || {})[t.id];
+        if (sig) ids.forEach((id) => { printTeacherSig[id] = sig; });
+      });
+      const gradeConfig = db.gradeConfig || [];
+
       const studentSubjects = getSubjectsForClass(db.subjects, student.class, student.stream);
       studentSubjects.forEach((sub) => {
         const sc = (db.scores[student.id] || {})[sub.id] || {};
-        const tc = (db.teacherComments?.[student.id] || {})[sub.id] || {};
         const t1   = sc.t1   !== undefined ? Number(sc.t1)   : "";
         const t2   = sc.t2   !== undefined ? Number(sc.t2)   : "";
         const exam = sc.exam !== undefined ? Number(sc.exam) : "";
         const total = (Number(t1) || 0) + (Number(t2) || 0) + (Number(exam) || 0);
         const hasScore = sc.t1 !== undefined;
         if (hasScore) grandTotal += total;
-        const pct = hasScore ? total : "";
-        const grade = hasScore ? getGrade(total).letter : "";
-        const sigImg = tc.signature ? `<img src="${tc.signature}" class="sig-img" alt="sig"/>` : "";
+        const gradeObj = hasScore ? getGrade(total, gradeConfig) : null;
+        const grade    = gradeObj ? gradeObj.letter : "";
+        const interpretation = gradeObj ? (gradeObj.label || "") : "";
+        const teacherSig = printTeacherSig[sub.id];
+        const sigImg = teacherSig ? `<img src="${teacherSig}" class="sig-img" alt="sig" style="height:20px;max-width:60px;object-fit:contain"/>` : "";
 
         subjectRows += `<tr>
           <td class="subj">${sub.name}</td>
@@ -377,7 +387,7 @@ export default function AdminPage({ toast, school = {} }) {
           <td>${exam !== "" ? exam : ""}</td>
           <td>${hasScore ? total : ""}</td>
           <td>${grade}</td>
-          <td style="font-size:8.5px;text-align:left;padding:1px 3px">${tc.comment || ""}</td>
+          <td style="font-size:8.5px;text-align:left;padding:1px 3px">${interpretation}</td>
           <td>${sigImg}</td>
         </tr>`;
       });

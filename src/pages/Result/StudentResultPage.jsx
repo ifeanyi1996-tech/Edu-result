@@ -25,26 +25,27 @@ export default function StudentResultPage({ schoolId, studentId }) {
   useEffect(() => {
     async function load() {
       try {
-        // Fetch school profile + school data in parallel
-        const [schoolSnap, dataSnap] = await Promise.all([
-          getDoc(doc(firestore, "schools",     schoolId)),
-          getDoc(doc(firestore, "schoolData",  schoolId)),
-        ]);
-
-        if (!schoolSnap.exists() || !dataSnap.exists()) {
-          setState("error"); return;
-        }
+        // Fetch school data — schoolData is mandatory; schools/ profile is optional
+        const dataSnap = await getDoc(doc(firestore, "schoolData", schoolId));
+        if (!dataSnap.exists()) { setState("error"); return; }
 
         const schoolData = dataSnap.data();
         const found = (schoolData.students || []).find((s) => s.id === studentId);
         if (!found) { setState("error"); return; }
 
-        setSchool(schoolSnap.data());
+        // Try to load the separate school profile doc (may not exist)
+        let schoolProfile = schoolData.school || schoolData.profile || {};
+        try {
+          const schoolSnap = await getDoc(doc(firestore, "schools", schoolId));
+          if (schoolSnap.exists()) schoolProfile = { ...schoolProfile, ...schoolSnap.data() };
+        } catch (_) { /* profile doc optional — ignore */ }
+
+        setSchool(schoolProfile);
         setDb(schoolData);
         setStudent(found);
         setState("ready");
       } catch (e) {
-        console.error(e);
+        console.error("Result load error:", e);
         setState("error");
       }
     }
@@ -98,7 +99,6 @@ export default function StudentResultPage({ schoolId, studentId }) {
   let grandTotal = 0;
   const subjectRows = subjects.map((sub) => {
     const sc    = ((db.scores || {})[studentId] || {})[sub.id] || {};
-    const tc    = ((db.teacherComments || {})[studentId] || {})[sub.id] || {};
     const t1    = sc.t1   !== undefined ? Number(sc.t1)   : null;
     const t2    = sc.t2   !== undefined ? Number(sc.t2)   : null;
     const exam  = sc.exam !== undefined ? Number(sc.exam) : null;
