@@ -40,6 +40,8 @@ export default function AdminPage({ toast, school = {} }) {
   const [schoolDaysDraft,  setSchoolDaysDraft]  = useState(0);
   const [attendanceDraft,  setAttendanceDraft]  = useState({}); // { studentId: days }
   const [promotionModal,   setPromotionModal]   = useState(false);
+  const [gradeModal,       setGradeModal]       = useState(false);
+  const [gradeDraft,       setGradeDraft]       = useState([]);
   const [editTeacherModal, setEditTeacherModal] = useState(null); // teacher object being edited
   const [editStudentModal, setEditStudentModal] = useState(null); // student object
   const [affectiveModal, setAffectiveModal] = useState(null);     // student object
@@ -584,6 +586,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
             >▶</button>
           </div>
           <Button variant="outline" onClick={openRoles}>👥 Assign Roles</Button>
+          <Button variant="outline" onClick={() => { setGradeDraft(JSON.parse(JSON.stringify(db.gradeConfig || []))); setGradeModal(true); }}>⚙️ Grade Config</Button>
           {isThirdTerm && (
             <Button variant="gold" onClick={() => setPromotionModal(true)}>🎓 Promotions</Button>
           )}
@@ -1235,6 +1238,64 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
           </div>
         </div>
       </Modal>
+
+      {/* ══ GRADE CONFIG MODAL ══ */}
+      {gradeModal && (
+        <Modal open={true} title="⚙️ Grade Configuration" onClose={() => setGradeModal(false)}>
+          <div style={{ padding:"0 0 4px" }}>
+            <p style={{ fontSize:13, color:"#64748b", marginBottom:16 }}>
+              Set grade ranges and their interpretations. These appear on every result slip.
+            </p>
+            <div style={{ display:"grid", gridTemplateColumns:"70px 60px 60px 1fr", gap:"6px 8px", alignItems:"center", marginBottom:8 }}>
+              <span style={{ fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase" }}>Grade</span>
+              <span style={{ fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase" }}>Min</span>
+              <span style={{ fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase" }}>Max</span>
+              <span style={{ fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase" }}>Interpretation</span>
+            </div>
+            <div style={{ maxHeight:380, overflowY:"auto", display:"flex", flexDirection:"column", gap:6 }}>
+              {gradeDraft.map((row, i) => (
+                <div key={i} style={{ display:"grid", gridTemplateColumns:"70px 60px 60px 1fr auto", gap:"6px 8px", alignItems:"center" }}>
+                  <input
+                    value={row.grade}
+                    onChange={(e) => setGradeDraft((prev) => prev.map((r,j) => j===i ? {...r, grade:e.target.value} : r))}
+                    style={{ padding:"6px 8px", borderRadius:7, border:"1.5px solid #e2e8f0", fontSize:13, fontWeight:700, textAlign:"center", fontFamily:"inherit", color: row.color || "#0f172a" }}
+                  />
+                  <input type="number" min={0} max={100}
+                    value={row.min}
+                    onChange={(e) => setGradeDraft((prev) => prev.map((r,j) => j===i ? {...r, min:Number(e.target.value)} : r))}
+                    style={{ padding:"6px 8px", borderRadius:7, border:"1.5px solid #e2e8f0", fontSize:13, textAlign:"center", fontFamily:"inherit" }}
+                  />
+                  <input type="number" min={0} max={100}
+                    value={row.max}
+                    onChange={(e) => setGradeDraft((prev) => prev.map((r,j) => j===i ? {...r, max:Number(e.target.value)} : r))}
+                    style={{ padding:"6px 8px", borderRadius:7, border:"1.5px solid #e2e8f0", fontSize:13, textAlign:"center", fontFamily:"inherit" }}
+                  />
+                  <input
+                    value={row.label}
+                    onChange={(e) => setGradeDraft((prev) => prev.map((r,j) => j===i ? {...r, label:e.target.value} : r))}
+                    style={{ padding:"6px 10px", borderRadius:7, border:"1.5px solid #e2e8f0", fontSize:13, fontFamily:"inherit" }}
+                    placeholder="e.g. Excellent"
+                  />
+                  <button onClick={() => setGradeDraft((prev) => prev.filter((_,j) => j!==i))}
+                    style={{ width:28, height:28, borderRadius:7, border:"none", background:"#fee2e2", color:"#dc2626", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setGradeDraft((prev) => [...prev, { grade:"", min:0, max:0, label:"", color:"#374151", bg:"#f1f5f9" }])}
+              style={{ fontSize:12, padding:"5px 12px", borderRadius:8, border:"1.5px dashed #e2e8f0", background:"#f8fafc", cursor:"pointer", color:"#64748b", marginTop:10, width:"100%" }}
+            >+ Add Grade</button>
+            <div style={{ display:"flex", justifyContent:"flex-end", gap:10, marginTop:18 }}>
+              <Button variant="outline" onClick={() => setGradeModal(false)}>Cancel</Button>
+              <Button variant="emerald" onClick={() => {
+                updateDB((d) => { d.gradeConfig = gradeDraft; return d; });
+                setGradeModal(false);
+                toast("✅ Grade configuration saved.");
+              }}>💾 Save Config</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* ══ ENROLLMENT MODAL ══ */}
       {enrollModal && (

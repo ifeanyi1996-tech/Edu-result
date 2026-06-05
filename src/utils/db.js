@@ -31,6 +31,18 @@ export function defaultDB() {
     enrollment: {},   // enrollment[subjectId] = [studentId, ...] — optional; empty = all eligible students
     currentTerm: { term: 1, year: "2025/2026" }, // term: 1|2|3
     promotion:   {},  // promotion[studentId] = true|false  (filled at end of Term 3)
+    gradeConfig: [
+      { grade:"A1", min:75, max:100, label:"Excellent",  color:"#059669", bg:"#d1fae5" },
+      { grade:"B2", min:70, max:74,  label:"Very Good",  color:"#0ea5e9", bg:"#e0f2fe" },
+      { grade:"B3", min:65, max:69,  label:"Good",       color:"#0ea5e9", bg:"#e0f2fe" },
+      { grade:"C4", min:60, max:64,  label:"Credit",     color:"#d97706", bg:"#fef3c7" },
+      { grade:"C5", min:55, max:59,  label:"Credit",     color:"#d97706", bg:"#fef3c7" },
+      { grade:"C6", min:50, max:54,  label:"Credit",     color:"#d97706", bg:"#fef3c7" },
+      { grade:"D7", min:45, max:49,  label:"Pass",       color:"#dc2626", bg:"#fee2e2" },
+      { grade:"E8", min:40, max:44,  label:"Pass",       color:"#dc2626", bg:"#fee2e2" },
+      { grade:"F9", min:0,  max:39,  label:"Fail",       color:"#7f1d1d", bg:"#fecaca" },
+    ],
+    teacherSignatures: {},  // teacherSignatures[teacherId] = base64 data URL
     schoolDays:  0,   // number of days school was open this term
     attendance:  {},  // attendance[studentId] = number of days present
   };
@@ -48,6 +60,18 @@ function normalise(parsed) {
   if (!parsed.enrollment)      parsed.enrollment      = {};
   if (!parsed.currentTerm)     parsed.currentTerm     = { term: 1, year: "2025/2026" };
   if (!parsed.promotion)       parsed.promotion       = {};
+  if (!parsed.gradeConfig || !parsed.gradeConfig.length) parsed.gradeConfig = [
+    { grade:"A1", min:75, max:100, label:"Excellent",  color:"#059669", bg:"#d1fae5" },
+    { grade:"B2", min:70, max:74,  label:"Very Good",  color:"#0ea5e9", bg:"#e0f2fe" },
+    { grade:"B3", min:65, max:69,  label:"Good",       color:"#0ea5e9", bg:"#e0f2fe" },
+    { grade:"C4", min:60, max:64,  label:"Credit",     color:"#d97706", bg:"#fef3c7" },
+    { grade:"C5", min:55, max:59,  label:"Credit",     color:"#d97706", bg:"#fef3c7" },
+    { grade:"C6", min:50, max:54,  label:"Credit",     color:"#d97706", bg:"#fef3c7" },
+    { grade:"D7", min:45, max:49,  label:"Pass",       color:"#dc2626", bg:"#fee2e2" },
+    { grade:"E8", min:40, max:44,  label:"Pass",       color:"#dc2626", bg:"#fee2e2" },
+    { grade:"F9", min:0,  max:39,  label:"Fail",       color:"#7f1d1d", bg:"#fecaca" },
+  ];
+  if (!parsed.teacherSignatures) parsed.teacherSignatures = {};
   if (parsed.schoolDays === undefined) parsed.schoolDays = 0;
   if (!parsed.attendance)      parsed.attendance      = {};
   if (!parsed.scores)         parsed.scores         = {};
@@ -215,6 +239,7 @@ export function buildResetDB(db) {
     studentInfo:     cleanedInfo,
     currentTerm:     nextTerm,
     promotion:       {},  // clear promotions for next cycle
+    teacherSignatures: db.teacherSignatures || {},  // signatures persist across terms
     schoolDays:      0,   // reset for new term
     attendance:      {},  // reset for new term
   };

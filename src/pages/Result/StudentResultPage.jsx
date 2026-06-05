@@ -105,9 +105,19 @@ export default function StudentResultPage({ schoolId, studentId }) {
     const hasS  = sc.t1   !== undefined;
     const rowTotal = (Number(t1)||0) + (Number(t2)||0) + (Number(exam)||0);
     if (hasS) grandTotal += rowTotal;
-    const grade = hasS ? getGrade(rowTotal) : null;
+    const gradeConfig = db.gradeConfig || [];
+    const grade = hasS ? getGrade(rowTotal, gradeConfig) : null;
+    const interpretation = grade ? (grade.label || grade.letter) : "";
 
-    return { sub, t1, t2, exam, rowTotal, hasS, grade, comment: tc.comment || "" };
+    return { sub, t1, t2, exam, rowTotal, hasS, grade, comment: interpretation };
+  });
+
+  // Build teacher signature lookup: subjectId → signature data URL
+  const teacherSigBySubject = {};
+  (db.teachers || []).forEach((t) => {
+    const ids = Array.isArray(t.subjects) ? t.subjects : (t.subject ? [t.subject] : []);
+    const sig = (db.teacherSignatures || {})[t.id];
+    if (sig) ids.forEach((id) => { teacherSigBySubject[id] = sig; });
   });
 
   const scoredCount = subjectRows.filter((r) => r.hasS).length;
@@ -189,7 +199,7 @@ export default function StudentResultPage({ schoolId, studentId }) {
               <th style={styles.th}>EXAM</th>
               <th style={styles.th}>TOTAL<br/>100%</th>
               <th style={styles.th}>GRADE</th>
-              <th style={{ ...styles.th, minWidth: 140 }}>TEACHER'S COMMENT</th>
+              <th style={{ ...styles.th, minWidth: 120 }}>INTERPRETATION</th>
             </tr>
           </thead>
           <tbody>
@@ -208,7 +218,7 @@ export default function StudentResultPage({ schoolId, studentId }) {
                 }}>
                   {locked ? "—" : (grade?.letter || "")}
                 </td>
-                <td style={{ ...styles.td, textAlign: "left", fontSize: 11 }}>{comment}</td>
+                <td style={{ ...styles.td, textAlign:"left", fontSize:11, fontWeight:600, color: grade?.color || "#374151" }}>{comment}</td>
               </tr>
             ))}
             <tr style={{ background: "#f1f5f9" }}>
@@ -220,6 +230,21 @@ export default function StudentResultPage({ schoolId, studentId }) {
           </tbody>
         </table>
       </div>
+
+      {/* ── Teacher Signatures row (shown if any teacher has signed) ── */}
+      {Object.keys(teacherSigBySubject).length > 0 && (
+        <div style={{ marginTop:8, marginBottom:4 }}>
+          <div style={{ fontSize:10, fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:6 }}>Teacher Signatures</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:16 }}>
+            {subjects.filter((sub) => teacherSigBySubject[sub.id]).map((sub) => (
+              <div key={sub.id} style={{ textAlign:"center" }}>
+                <img src={teacherSigBySubject[sub.id]} alt={sub.name} style={{ height:36, maxWidth:100, objectFit:"contain", display:"block", margin:"0 auto" }} />
+                <div style={{ fontSize:10, color:"#64748b", marginTop:2 }}>{sub.name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom section ── */}
       <div style={styles.bottom}>

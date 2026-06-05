@@ -71,14 +71,16 @@ export default function TeacherPage({ teacher, toast }) {
     setSelectedStudent(student);
   }
 
-  function handleSaveScore({ scores, comment, signature }) {
+  function handleSaveScore({ scores, signature }) {
     if (!activeSubject) return;
     updateDB((d) => {
       if (!d.scores[selectedStudent.id]) d.scores[selectedStudent.id] = {};
       d.scores[selectedStudent.id][activeSubject.id] = scores;
-      if (!d.teacherComments) d.teacherComments = {};
-      if (!d.teacherComments[selectedStudent.id]) d.teacherComments[selectedStudent.id] = {};
-      d.teacherComments[selectedStudent.id][activeSubject.id] = { comment, signature };
+      // Persist teacher signature once — auto-fills all result slips
+      if (signature) {
+        if (!d.teacherSignatures) d.teacherSignatures = {};
+        d.teacherSignatures[teacher.id] = signature;
+      }
       return d;
     });
     toast(`✅ ${activeSubject.name} score saved for ${selectedStudent.name}!`);
@@ -97,7 +99,8 @@ export default function TeacherPage({ teacher, toast }) {
   }
 
   const existingScore   = selectedStudent ? (db.scores[selectedStudent.id] || {})[activeSubject?.id] : null;
-  const existingComment = selectedStudent ? ((db.teacherComments || {})[selectedStudent.id] || {})[activeSubject?.id] : null;
+  const existingComment  = null; // comments removed — grade interpretation used instead
+  const teacherSignature = (db.teacherSignatures || {})[teacher.id] || "";
 
   return (
     <div className={styles.page}>
@@ -216,7 +219,7 @@ export default function TeacherPage({ teacher, toast }) {
           student={selectedStudent}
           subject={activeSubject}
           existingScore={existingScore}
-          existingComment={existingComment}
+          existingComment={{ signature: teacherSignature }}
           onSave={handleSaveScore}
           onCancel={() => setSelectedStudent(null)}
           locked={db.locked}

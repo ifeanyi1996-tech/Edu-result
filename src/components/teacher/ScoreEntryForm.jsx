@@ -13,7 +13,6 @@ const FIELDS = [
 export default function ScoreEntryForm({ student, subject, existingScore, existingComment, locked, onSave, onBack }) {
   const [values, setValues]   = useState({ t1: "", t2: "", exam: "" });
   const [errors, setErrors]   = useState({});
-  const [comment, setComment] = useState("");
   const [signature, setSignature] = useState("");
 
   useEffect(() => {
@@ -22,7 +21,6 @@ export default function ScoreEntryForm({ student, subject, existingScore, existi
       t2:   existingScore?.t2   !== undefined ? String(existingScore.t2)   : "",
       exam: existingScore?.exam !== undefined ? String(existingScore.exam) : "",
     });
-    setComment(existingComment?.comment || "");
     setSignature(existingComment?.signature || "");
     setErrors({});
   }, [student.id, subject.id]);
@@ -50,7 +48,6 @@ export default function ScoreEntryForm({ student, subject, existingScore, existi
         t2:   values.t2   !== "" ? Number(values.t2)   : "",
         exam: values.exam !== "" ? Number(values.exam) : "",
       },
-      comment,
       signature,
     });
   }
@@ -114,23 +111,11 @@ export default function ScoreEntryForm({ student, subject, existingScore, existi
             </div>
           </div>
 
-          {/* Teacher's Comment */}
-          <div className={styles.commentSection}>
-            <label className={styles.commentLabel}>Teacher's Comment</label>
-            <textarea
-              className={styles.commentInput}
-              rows={2}
-              maxLength={120}
-              placeholder="e.g. Excellent performance, keep it up!"
-              value={comment}
-              disabled={locked}
-              onChange={(e) => setComment(e.target.value)}
-            />
-          </div>
+
 
           {/* Signature pad */}
           <div className={styles.sigSection}>
-            <label className={styles.commentLabel}>Teacher's Signature <span className={styles.sigHint}>(draw below)</span></label>
+            <label className={styles.commentLabel}>Your Signature <span className={styles.sigHint}>(saved once — auto-fills all results)</span></label>
             {locked
               ? signature
                 ? <img src={signature} alt="signature" className={styles.sigPreview} />

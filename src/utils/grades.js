@@ -43,14 +43,25 @@ export function getSubjectsForClass(subjects, className, stream) {
 }
 
 /**
- * Returns grade letter, text colour, and background colour for a given score.
+ * Returns grade info for a given score using admin-configured or default ranges.
+ * @param {number} score - raw score (0–100)
+ * @param {Array}  [gradeConfig] - optional array from db.gradeConfig
  */
-export function getGrade(pct) {
-  if (pct >= 80) return { letter: "A", color: "#059669", bg: "#d1fae5" };
-  if (pct >= 65) return { letter: "B", color: "#0ea5e9", bg: "#e0f2fe" };
-  if (pct >= 50) return { letter: "C", color: "#d97706", bg: "#fef3c7" };
-  if (pct >= 40) return { letter: "D", color: "#dc2626", bg: "#fee2e2" };
-  return { letter: "F", color: "#7f1d1d", bg: "#fecaca" };
+export function getGrade(score, gradeConfig) {
+  if (gradeConfig && gradeConfig.length) {
+    const cfg = gradeConfig.find((g) => score >= g.min && score <= g.max);
+    if (cfg) return { letter: cfg.grade, label: cfg.label, color: cfg.color, bg: cfg.bg };
+  }
+  // Fallback defaults
+  if (score >= 75) return { letter: "A1", label: "Excellent",  color: "#059669", bg: "#d1fae5" };
+  if (score >= 70) return { letter: "B2", label: "Very Good",  color: "#0ea5e9", bg: "#e0f2fe" };
+  if (score >= 65) return { letter: "B3", label: "Good",       color: "#0ea5e9", bg: "#e0f2fe" };
+  if (score >= 60) return { letter: "C4", label: "Credit",     color: "#d97706", bg: "#fef3c7" };
+  if (score >= 55) return { letter: "C5", label: "Credit",     color: "#d97706", bg: "#fef3c7" };
+  if (score >= 50) return { letter: "C6", label: "Credit",     color: "#d97706", bg: "#fef3c7" };
+  if (score >= 45) return { letter: "D7", label: "Pass",       color: "#dc2626", bg: "#fee2e2" };
+  if (score >= 40) return { letter: "E8", label: "Pass",       color: "#dc2626", bg: "#fee2e2" };
+  return             { letter: "F9", label: "Fail",       color: "#7f1d1d", bg: "#fecaca" };
 }
 
 /**
