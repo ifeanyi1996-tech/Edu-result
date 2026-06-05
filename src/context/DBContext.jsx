@@ -47,6 +47,32 @@ export function DBProvider({ children }) {
     return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
+  // ── Offline resilience: when connection returns, push localStorage → Firestore ──
+  useEffect(() => {
+    function handleOnline() {
+      const uid = localStorage.getItem("schoolUid");
+      if (!uid) return;
+      // Read the latest locally-cached DB and push it up
+      const local = loadDB();
+      if (local) {
+        saveDB(local);  // saveDB writes to both localStorage and Firestore
+        setDb(local);
+      }
+    }
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
+
+  // Track online/offline state so UI can show sync status
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const on  = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener("online",  on);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
+
   const updateDB = useCallback((fn) => {
     setDb((current) => {
       const next = fn({ ...current });
@@ -56,7 +82,7 @@ export function DBProvider({ children }) {
   }, []);
 
   return (
-    <DBContext.Provider value={{ db, setDb, updateDB, dbReady }}>
+    <DBContext.Provider value={{ db, setDb, updateDB, dbReady, isOnline }}>
       {children}
     </DBContext.Provider>
   );

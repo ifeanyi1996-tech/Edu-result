@@ -7,7 +7,7 @@ import StaffCommentPanel from "../../components/teacher/StaffCommentPanel";
 import styles from "./TeacherPage.module.css";
 
 export default function TeacherPage({ teacher, toast }) {
-  const { db, updateDB } = useDB();
+  const { db, updateDB, isOnline } = useDB();
 
   // Teacher may now have multiple subjects
   const subjectIds   = getTeacherSubjectIds(teacher);
@@ -39,6 +39,12 @@ export default function TeacherPage({ teacher, toast }) {
   const scoredCount = eligibleStudents.filter(
     (s) => (db.scores[s.id] || {})[activeSubject?.id]?.t1 !== undefined
   ).length;
+
+  // Offline: scores always save to localStorage immediately via updateDB.
+  // When back online, DBContext auto-pushes localStorage → Firestore.
+  const syncBadge = isOnline
+    ? { bg:"#f0fdf4", border:"#86efac", color:"#065f46", icon:"🟢", text:"Online · Synced" }
+    : { bg:"#fef3c7", border:"#fcd34d", color:"#92400e", icon:"🟡", text:"Offline · Scores saved locally" };
 
   // Extra roles (form master, house mistress, principal)
   const roles      = db.roles || {};
@@ -100,6 +106,11 @@ export default function TeacherPage({ teacher, toast }) {
           🔒 Results have been locked by the admin. Score entry is currently disabled.
         </div>
       )}
+
+      {/* ── Sync status badge ── */}
+      <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 12px", background:syncBadge.bg, border:`1px solid ${syncBadge.border}`, borderRadius:8, fontSize:12, fontWeight:600, color:syncBadge.color, marginBottom:12 }}>
+        {syncBadge.icon} {syncBadge.text}{!isOnline && <span style={{ fontWeight:400 }}> — will sync when back online</span>}
+      </div>
 
       {/* ── Section switcher (scores vs staff comments) ── */}
       {hasRoles && !selectedStudent && (

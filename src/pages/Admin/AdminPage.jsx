@@ -615,6 +615,21 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               onClick={() => { navigator.clipboard.writeText(uid); }}
               style={{ padding: "4px 12px", background: "#f59e0b", border: "none", borderRadius: 6, fontFamily: "inherit", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#fff" }}
             >Copy</button>
+          {/* Universal result lookup link — shown only if any student has an admNo */}
+          {db.students.some((s) => (db.studentInfo || {})[s.id]?.admNo) && (() => {
+            const uid = localStorage.getItem("schoolUid") || "";
+            const lookupUrl = uid ? `${window.location.origin}${window.location.pathname}?school=${uid}&lookup=1` : "";
+            return lookupUrl ? (
+              <div style={{ display:"flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:10, padding:"8px 14px", marginTop:6 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:"#065f46" }}>🔗 Universal Result Link</span>
+                <span style={{ fontSize:12, color:"#064e3b", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:280 }}>{lookupUrl}</span>
+                <button
+                  onClick={() => navigator.clipboard.writeText(lookupUrl).then(() => toast("✅ Universal link copied! Share with students."))}
+                  style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:"1px solid #86efac", background:"#fff", cursor:"pointer", color:"#065f46", fontWeight:700, whiteSpace:"nowrap" }}
+                >Copy Link</button>
+              </div>
+            ) : null;
+          })()}
             <span style={{ color: "#92400e", fontSize: 12 }}>Teachers paste this on first login from a new device.</span>
           </div>
         ) : null;

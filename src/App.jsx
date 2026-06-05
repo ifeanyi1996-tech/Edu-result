@@ -8,7 +8,8 @@ import Toast             from "./components/common/Toast";
 import AdminPage         from "./pages/Admin/AdminPage";
 import TeacherPage       from "./pages/Teacher/TeacherPage";
 import SuperAdminPage    from "./pages/SuperAdmin/SuperAdminPage";
-import StudentResultPage from "./pages/Result/StudentResultPage";
+import StudentResultPage  from "./pages/Result/StudentResultPage";
+import StudentLookupPage  from "./pages/Result/StudentLookupPage";
 import { useToast }      from "./utils/useToast";
 import { SUPER_ADMIN_EMAIL } from "./utils/superAdmin";
 import styles            from "./App.module.css";
@@ -18,8 +19,12 @@ const params          = new URLSearchParams(window.location.search);
 const resultStudentId = params.get("result");
 const resultSchoolId  = params.get("school");
 const isPublicResult  = !!(resultStudentId && resultSchoolId);
+const isLookup        = !!(resultSchoolId && params.get("lookup") === "1" && !resultStudentId);
 
 export default function App() {
+  if (isLookup) {
+    return <StudentLookupPage schoolId={resultSchoolId} />;
+  }
   if (isPublicResult) {
     return (
       <>
