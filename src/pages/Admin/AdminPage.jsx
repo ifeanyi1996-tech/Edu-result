@@ -427,7 +427,7 @@ export default function AdminPage({ toast, school = {} }) {
       const affRows = BEHAVIOUR_ROWS.map((b) => {
         const rating = affData[b] || "";
         const cells = GRADES_OPTS.map((g) =>
-          `<td style="${rating === g ? \"text-align:center;font-size:11px\" : \"\"}">${rating === g ? "✓" : ""}</td>`
+          `<td style="${rating === g ? \"text-align:center;font-size:11px\" : \"\"}">${rating === g ? "&#10003;" : ""}</td>`
         ).join("");
         return `<tr><td class="act-col">${b}</td>${cells}</tr>`;
       }).join("");
