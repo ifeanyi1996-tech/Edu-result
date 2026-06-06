@@ -101,10 +101,15 @@ export function hasScore(scores, studentId, subjectId) {
  * Ranks students by total score, section-aware.
  */
 export function rankStudents(students, scores, subjects) {
-  return students
-    .map((s) => ({ ...s, total: getStudentTotal(scores, s.id, subjects || [], s.class) }))
-    .sort((a, b) => b.total - a.total)
-    .map((s, i) => ({ ...s, pos: i + 1 }));
+  const withTotals = students.map((s) => ({
+    ...s,
+    total: getStudentTotal(scores, s.id, subjects || [], s.class)
+  })).sort((a, b) => b.total - a.total);
+  // Tie-aware: students with equal total get the same position
+  return withTotals.map((s) => ({
+    ...s,
+    pos: withTotals.filter((x) => x.total > s.total).length + 1
+  }));
 }
 
 /**

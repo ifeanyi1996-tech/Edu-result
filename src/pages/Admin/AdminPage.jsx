@@ -282,7 +282,11 @@ export default function AdminPage({ toast, school = {} }) {
         const avg = scored.length > 0 ? total / scored.length : 0;
         return { ...s, total, avg };
       }).sort((a, b) => b.avg - a.avg)
-        .map((s, i) => ({ ...s, pos: i + 1 }));
+        .map((s, i, arr) => ({
+          ...s,
+          // Tie-aware: count how many students ranked strictly above this one
+          pos: arr.filter((x) => x.avg > s.avg).length + 1
+        }));
       classRankings[cls] = ranked;
     });
 
@@ -423,7 +427,7 @@ export default function AdminPage({ toast, school = {} }) {
       const affRows = BEHAVIOUR_ROWS.map((b) => {
         const rating = affData[b] || "";
         const cells = GRADES_OPTS.map((g) =>
-          `<td style="${rating === g ? "background:#000;color:#fff;font-weight:bold" : ""}">${rating === g ? g : ""}</td>`
+          `<td style="${rating === g ? \"text-align:center;font-size:11px\" : \"\"}">${rating === g ? "✓" : ""}</td>`
         ).join("");
         return `<tr><td class="act-col">${b}</td>${cells}</tr>`;
       }).join("");
