@@ -427,7 +427,7 @@ export default function AdminPage({ toast, school = {} }) {
       const affRows = BEHAVIOUR_ROWS.map((b) => {
         const rating = affData[b] || "";
         const cells = GRADES_OPTS.map((g) =>
-          `<td style="${rating === g ? \"text-align:center;font-size:11px\" : \"\"}">${rating === g ? "&#10003;" : ""}</td>`
+          `<td style="${rating === g ? \"text-align:center;font-size:11px\" : \"\"}">${rating === g ? "✓" : ""}</td>`
         ).join("");
         return `<tr><td class="act-col">${b}</td>${cells}</tr>`;
       }).join("");
@@ -548,7 +548,7 @@ export default function AdminPage({ toast, school = {} }) {
         </div>
 
         <!-- ══ PRINCIPAL SIGNATURE ══ -->
-        <div class="prin-sig">${prinSig ? `<img src="${prinSig}" style="height:32px;max-width:130px;object-fit:contain;display:block;margin-bottom:2px" alt="Principal Signature"/>` : '<div style="border-bottom:1px solid #000;width:180px;margin-bottom:2px">&nbsp;</div>'}<span style="font-size:9px">Principal's Signature</span></div>
+        <div class="prin-sig">________________________________<br/>Principal's Signature</div>
 
       </div>`;
     });
