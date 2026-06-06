@@ -505,21 +505,21 @@ export default function AdminPage({ toast, school = {} }) {
               <div class="clabel">Form master's Comment(s):</div>
               <div class="ctext">${staffC.formMaster || ""}</div>
               <div class="cline"></div>
-              <div class="sig-row">Signature: ${fmSig ? `<img src="${fmSig}" style="height:24px;max-width:100px;object-fit:contain;vertical-align:middle" alt="sig"/>` : '<span class="sig-line"></span>'}</div>
+              <div class="sig-row">Signature: <span style="display:inline-block;position:relative;width:110px;border-bottom:1px solid #000;vertical-align:bottom;margin-left:4px">${fmSig ? `<img src="${fmSig}" style="height:22px;max-width:108px;object-fit:contain;position:absolute;bottom:1px;left:0" alt="sig"/>` : ""}</span></div>
             </div>
 
             <div class="comment-block">
               <div class="clabel">House Mistress Comments (s):</div>
               <div class="ctext">${staffC.houseMistress || ""}</div>
               <div class="cline"></div>
-              <div class="sig-row">Signature: ${hmSig ? `<img src="${hmSig}" style="height:24px;max-width:100px;object-fit:contain;vertical-align:middle" alt="sig"/>` : '<span class="sig-line"></span>'}</div>
+              <div class="sig-row">Signature: <span style="display:inline-block;position:relative;width:110px;border-bottom:1px solid #000;vertical-align:bottom;margin-left:4px">${hmSig ? `<img src="${hmSig}" style="height:22px;max-width:108px;object-fit:contain;position:absolute;bottom:1px;left:0" alt="sig"/>` : ""}</span></div>
             </div>
 
             <div class="comment-block">
               <div class="clabel">Principal's Comment(s):</div>
               <div class="ctext">${staffC.principal || ""}</div>
               <div class="cline"></div>
-              <div class="sig-row">Signature: ${prinSig ? `<img src="${prinSig}" style="height:24px;max-width:100px;object-fit:contain;vertical-align:middle" alt="sig"/>` : '<span class="sig-line"></span>'}</div>
+              <div class="sig-row">Signature: <span style="display:inline-block;position:relative;width:110px;border-bottom:1px solid #000;vertical-align:bottom;margin-left:4px">${prinSig ? `<img src="${prinSig}" style="height:22px;max-width:108px;object-fit:contain;position:absolute;bottom:1px;left:0" alt="sig"/>` : ""}</span></div>
             </div>
 
             <div class="promoted">Promoted/Not Promoted: <strong>${(() => { const p = (db.promotion || {})[student.id]; return p === true ? "PROMOTED" : p === false ? "NOT PROMOTED" : "—"; })()}</strong></div>
