@@ -270,7 +270,20 @@ export default function AdminPage({ toast, school = {} }) {
 
     const classRankings = {};
     classes.forEach((cls) => {
-      classRankings[cls] = rankStudents(db.students.filter((s) => s.class === cls), db.scores);
+      // Rank by average (total ÷ number of scored subjects) so missing entries don't distort rank
+      const classStudents = db.students.filter((s) => s.class === cls);
+      const ranked = classStudents.map((s) => {
+        const clsSubjects = getSubjectsForClass(db.subjects, cls, s.stream);
+        const scored = clsSubjects.filter((sub) => (db.scores[s.id] || {})[sub.id]?.t1 !== undefined);
+        const total  = scored.reduce((sum, sub) => {
+          const sc = (db.scores[s.id] || {})[sub.id] || {};
+          return sum + (Number(sc.t1)||0) + (Number(sc.t2)||0) + (Number(sc.exam)||0);
+        }, 0);
+        const avg = scored.length > 0 ? total / scored.length : 0;
+        return { ...s, total, avg };
+      }).sort((a, b) => b.avg - a.avg)
+        .map((s, i) => ({ ...s, pos: i + 1 }));
+      classRankings[cls] = ranked;
     });
 
     const css = `
@@ -346,8 +359,19 @@ export default function AdminPage({ toast, school = {} }) {
     db.students.forEach((student) => {
       const cls = student.class;
       const ranked = classRankings[cls] || [];
+      // Ordinal helper
+      const ordinal = (n) => { const s=["th","st","nd","rd"], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+      // Staff role → teacher id lookup
+      const roles = db.roles || {};
+      const fmId  = (roles.formMasters || {})[cls] || roles.formMaster || "";
+      const hmId  = roles.houseMistress || "";
+      const prinId= roles.principal || "";
+      const sigs  = db.teacherSignatures || {};
+      const fmSig  = fmId   ? (sigs[fmId]   || "") : "";
+      const hmSig  = hmId   ? (sigs[hmId]   || "") : "";
+      const prinSig= prinId ? (sigs[prinId] || "") : "";
       const studentRank = ranked.find((r) => r.id === student.id);
-      const position = studentRank ? studentRank.pos : "—";
+      const position = studentRank ? ordinal(studentRank.pos) : "—";
       const totalStudents = ranked.length;
       const info = (db.studentInfo || {})[student.id] || {};
       const staffC = (db.staffComments || {})[student.id] || {};
@@ -481,23 +505,24 @@ export default function AdminPage({ toast, school = {} }) {
               <div class="clabel">Form master's Comment(s):</div>
               <div class="ctext">${staffC.formMaster || ""}</div>
               <div class="cline"></div>
-              <div class="sig-row">Signature: <span class="sig-line"></span></div>
+              <div class="sig-row">Signature: ${fmSig ? `<img src="${fmSig}" style="height:24px;max-width:100px;object-fit:contain;vertical-align:middle" alt="sig"/>` : '<span class="sig-line"></span>'}</div>
             </div>
 
             <div class="comment-block">
               <div class="clabel">House Mistress Comments (s):</div>
               <div class="ctext">${staffC.houseMistress || ""}</div>
               <div class="cline"></div>
-              <div class="sig-row">Signature: <span class="sig-line"></span></div>
+              <div class="sig-row">Signature: ${hmSig ? `<img src="${hmSig}" style="height:24px;max-width:100px;object-fit:contain;vertical-align:middle" alt="sig"/>` : '<span class="sig-line"></span>'}</div>
             </div>
 
             <div class="comment-block">
               <div class="clabel">Principal's Comment(s):</div>
               <div class="ctext">${staffC.principal || ""}</div>
               <div class="cline"></div>
+              <div class="sig-row">Signature: ${prinSig ? `<img src="${prinSig}" style="height:24px;max-width:100px;object-fit:contain;vertical-align:middle" alt="sig"/>` : '<span class="sig-line"></span>'}</div>
             </div>
 
-            <div class="promoted">Promoted/Not Promoted: ______________________________</div>
+            <div class="promoted">Promoted/Not Promoted: <strong>${(() => { const p = (db.promotion || {})[student.id]; return p === true ? "PROMOTED" : p === false ? "NOT PROMOTED" : "—"; })()}</strong></div>
           </div>
 
           <!-- Right: affective -->

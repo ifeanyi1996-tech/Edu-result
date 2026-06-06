@@ -81,7 +81,8 @@ export default function StudentResultPage({ schoolId, studentId }) {
   const classmates = (db.students || []).filter((s) => s.class === cls);
   const ranked   = rankStudents(classmates, db.scores || {}, db.subjects || []);
   const myRank   = ranked.find((r) => r.id === studentId);
-  const position = myRank?.pos ?? "—";
+  const ordinal  = (n) => { const s=["th","st","nd","rd"],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+  const position = myRank ? ordinal(myRank.pos) : "—";
   const total    = ranked.length;
 
   const info       = (db.studentInfo || {})[studentId] || {};
@@ -175,6 +176,8 @@ export default function StudentResultPage({ schoolId, studentId }) {
             <td style={styles.infoCell}><b>Out of:</b> {total}</td>
             <td style={{ ...styles.infoCell, borderRight: "none" }} colSpan={2}><b>Term:</b> {termLabel}</td>
           </tr>
+          {(() => { const p = (db.promotion || {})[studentId]; if (p === undefined) return null;
+            return <tr><td style={styles.infoCell} colSpan={4}><b>Promoted/Not Promoted:</b> <span style={{ fontWeight:800, color: p ? "#059669" : "#dc2626" }}>{p ? "PROMOTED ✓" : "NOT PROMOTED ✗"}</span></td></tr>; })()}
           {hasAttendance && (
           <tr>
             <td style={styles.infoCell}><b>Days School Opened:</b> {schoolDays || "—"}</td>
