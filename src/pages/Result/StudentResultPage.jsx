@@ -76,6 +76,19 @@ export default function StudentResultPage({ schoolId, studentId }) {
     );
   }
 
+  // ── Not published yet ───────────────────────────────────────────────────
+  if (!db.locked) {
+    return (
+      <div style={styles.center}>
+        <div style={{ fontSize: 48 }}>🔒</div>
+        <h2 style={{ margin: "12px 0 8px", color: "#1e293b" }}>Results Not Yet Published</h2>
+        <p style={{ color: "#64748b", fontSize: 14, textAlign: "center", maxWidth: 340 }}>
+          Your school has not published results for this term yet. Please check back later.
+        </p>
+      </div>
+    );
+  }
+
   // ── Ready — render result ────────────────────────────────────────────────
   const cls      = student.class;
   const classmates = (db.students || []).filter((s) => s.class === cls);
@@ -125,17 +138,18 @@ export default function StudentResultPage({ schoolId, studentId }) {
   const maxPossible = scoredCount * 100;
   const avgPct = maxPossible > 0 ? ((grandTotal / maxPossible) * 100).toFixed(1) : null;
 
-  const locked = db.locked;
+  // Build role → teacher signature lookup
+  const roles = db.roles || {};
+  const sigs  = db.teacherSignatures || {};
+  const fmId   = (roles.formMasters || {})[student.class] || roles.formMaster || "";
+  const hmId   = roles.houseMistress || "";
+  const prinId = roles.principal || "";
+  const fmSig   = fmId   ? (sigs[fmId]   || "") : "";
+  const hmSig   = hmId   ? (sigs[hmId]   || "") : "";
+  const prinSig = prinId ? (sigs[prinId] || "") : "";
 
   return (
     <div style={styles.page}>
-      {/* ── Locked banner ── */}
-      {locked && (
-        <div style={styles.lockedBanner}>
-          🔒 Results are currently locked by the admin. Scores are hidden until published.
-        </div>
-      )}
-
       {/* ── Header ── */}
       <div style={styles.header}>
         <div style={styles.headerLogoWrap}>
@@ -209,17 +223,17 @@ export default function StudentResultPage({ schoolId, studentId }) {
             {subjectRows.map(({ sub, t1, t2, exam, rowTotal, hasS, grade, comment }) => (
               <tr key={sub.id}>
                 <td style={{ ...styles.td, textAlign: "left" }}>{sub.name}</td>
-                <td style={styles.td}>{locked ? "—" : (t1 !== null ? t1 : "")}</td>
-                <td style={styles.td}>{locked ? "—" : (t2 !== null ? t2 : "")}</td>
-                <td style={styles.td}>{locked ? "—" : (exam !== null ? exam : "")}</td>
-                <td style={{ ...styles.td, fontWeight: 700 }}>{locked ? "—" : (hasS ? rowTotal : "")}</td>
+                <td style={styles.td}>{t1 !== null ? t1 : ""}</td>
+                <td style={styles.td}>{t2 !== null ? t2 : ""}</td>
+                <td style={styles.td}>{exam !== null ? exam : ""}</td>
+                <td style={{ ...styles.td, fontWeight: 700 }}>{hasS ? rowTotal : ""}</td>
                 <td style={{
                   ...styles.td,
                   fontWeight: 700,
                   color: grade?.color || "#000",
                   background: grade?.bg || "transparent",
                 }}>
-                  {locked ? "—" : (grade?.letter || "")}
+                  {grade?.letter || ""}
                 </td>
                 <td style={{ ...styles.td, textAlign:"left", fontSize:11, fontWeight:600, color: grade?.color || "#374151" }}>{comment}</td>
               </tr>
@@ -227,7 +241,7 @@ export default function StudentResultPage({ schoolId, studentId }) {
             <tr style={{ background: "#f1f5f9" }}>
               <td style={{ ...styles.td, fontWeight: 700, textAlign: "left" }}>TOTAL MARKS</td>
               <td style={styles.td} /><td style={styles.td} /><td style={styles.td} />
-              <td style={{ ...styles.td, fontWeight: 700 }}>{locked ? "—" : (grandTotal || "")}</td>
+              <td style={{ ...styles.td, fontWeight: 700 }}>{grandTotal || ""}</td>
               <td style={styles.td} /><td style={styles.td} />
             </tr>
           </tbody>
@@ -255,22 +269,31 @@ export default function StudentResultPage({ schoolId, studentId }) {
         <div style={styles.bottomLeft}>
           <div style={styles.avgRow}>
             <b>Average Percentage:</b>
-            <span style={styles.avgVal}>{locked ? "—" : (avgPct ? avgPct + "%" : "—")}</span>
+            <span style={styles.avgVal}>{avgPct ? avgPct + "%" : "—"}</span>
           </div>
 
           {[
-            { label: "Form Master's Comment:", val: staffC.formMaster },
-            { label: "House Mistress Comment:", val: staffC.houseMistress },
-            { label: "Principal's Comment:",    val: staffC.principal },
-          ].map(({ label, val }) => (
+            { label: "Form Master's Comment:",    val: staffC.formMaster,    sig: fmSig },
+            { label: "House Mistress Comment:",   val: staffC.houseMistress, sig: hmSig },
+            { label: "Principal's Comment:",      val: staffC.principal,     sig: prinSig },
+          ].map(({ label, val, sig }) => (
             <div key={label} style={styles.commentBlock}>
               <div style={styles.commentLabel}>{label}</div>
-              <div style={styles.commentVal}>{val || <span style={{ color: "#aaa" }}>—</span>}</div>
+              <div style={styles.commentVal}>{val || <span style={{ color:"#aaa" }}>—</span>}</div>
+              <div style={{ borderBottom:"1px solid #999", marginTop:4, marginBottom:2, position:"relative", height:28 }}>
+                {sig && <img src={sig} alt="sig" style={{ height:26, maxWidth:110, objectFit:"contain", position:"absolute", bottom:1, left:0 }} />}
+              </div>
+              <div style={{ fontSize:10, color:"#64748b" }}>Signature</div>
             </div>
           ))}
 
-          <div style={styles.promotedRow}>
-            <b>Promoted / Not Promoted:</b> ___________________________
+          <div style={{ ...styles.promotedRow, marginTop:10 }}>
+            {(() => {
+              const p = (db.promotion || {})[studentId];
+              return p === undefined
+                ? <><b>Promoted / Not Promoted:</b> ___________________________</>
+                : <><b>Promoted / Not Promoted:</b> <span style={{ fontWeight:800, color: p ? "#059669" : "#dc2626" }}>{p ? "PROMOTED ✓" : "NOT PROMOTED ✗"}</span></>;
+            })()}
           </div>
         </div>
 
@@ -293,10 +316,9 @@ export default function StudentResultPage({ schoolId, studentId }) {
                     {GRADES_OPTS.map((g) => (
                       <td key={g} style={{
                         ...styles.td,
-                        background: rating === g ? "#1e293b" : "transparent",
-                        color:      rating === g ? "#fff"    : "#000",
-                        fontWeight: rating === g ? 700       : 400,
-                      }}>{rating === g ? g : ""}</td>
+                        textAlign: "center",
+                        fontWeight: rating === g ? 700 : 400,
+                      }}>{rating === g ? "✓" : ""}</td>
                     ))}
                   </tr>
                 );

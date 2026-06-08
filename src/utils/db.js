@@ -43,6 +43,7 @@ export function defaultDB() {
       { grade:"F9", min:0,  max:39,  label:"Fail",       color:"#7f1d1d", bg:"#fecaca" },
     ],
     teacherSignatures: {},  // teacherSignatures[teacherId] = base64 data URL
+    passCodes:        {},  // passCodes[studentId] = auto-generated code (if no admNo)
     schoolDays:  0,   // number of days school was open this term
     attendance:  {},  // attendance[studentId] = number of days present
   };
@@ -72,6 +73,7 @@ function normalise(parsed) {
     { grade:"F9", min:0,  max:39,  label:"Fail",       color:"#7f1d1d", bg:"#fecaca" },
   ];
   if (!parsed.teacherSignatures) parsed.teacherSignatures = {};
+  if (!parsed.passCodes)       parsed.passCodes       = {};
   if (parsed.schoolDays === undefined) parsed.schoolDays = 0;
   if (!parsed.attendance)      parsed.attendance      = {};
   if (!parsed.scores)         parsed.scores         = {};
@@ -151,7 +153,16 @@ export async function archiveCurrentTerm(db, termLabel) {
     await addDoc(collection(firestore, "schoolTerms"), snapshot);
     return { ok: true };
   } catch (e) {
-    return { ok: false, message: e.message };
+    // Firestore write failed (permissions/index/offline).
+    // Still return ok so the local DB reset proceeds — data is saved locally.
+    console.warn("archiveCurrentTerm Firestore error:", e.message);
+    // Save archive to localStorage as fallback
+    try {
+      const existing = JSON.parse(localStorage.getItem("localTermArchive_" + uid) || "[]");
+      existing.unshift(snapshot);
+      localStorage.setItem("localTermArchive_" + uid, JSON.stringify(existing));
+    } catch (_) {}
+    return { ok: true, warn: e.message };
   }
 }
 
@@ -160,16 +171,26 @@ export async function fetchArchivedTerms() {
   const uid = localStorage.getItem("schoolUid");
   if (!uid) return [];
   try {
+    // No orderBy — avoids Firestore composite index requirement; sort in JS
     const q    = query(
       collection(firestore, "schoolTerms"),
-      where("schoolUid", "==", uid),
-      orderBy("archivedAt", "desc")
+      where("schoolUid", "==", uid)
     );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const firestoreDocs = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt));
+    // Merge with any locally-archived terms (fallback when Firestore write failed)
+    const local = JSON.parse(localStorage.getItem("localTermArchive_" + uid) || "[]");
+    const allIds = new Set(firestoreDocs.map((d) => d.termLabel + d.archivedAt));
+    const merged = [...firestoreDocs];
+    local.forEach((t) => { if (!allIds.has(t.termLabel + t.archivedAt)) merged.push(t); });
+    return merged.sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt));
   } catch (e) {
     console.warn("fetchArchivedTerms error:", e.message);
-    return [];
+    // Fall back to local archive only
+    const local = JSON.parse(localStorage.getItem("localTermArchive_" + uid) || "[]");
+    return local;
   }
 }
 
@@ -240,6 +261,7 @@ export function buildResetDB(db) {
     currentTerm:     nextTerm,
     promotion:       {},  // clear promotions for next cycle
     teacherSignatures: db.teacherSignatures || {},  // signatures persist across terms
+    passCodes:        db.passCodes        || {},  // passcodes persist across terms
     schoolDays:      0,   // reset for new term
     attendance:      {},  // reset for new term
   };

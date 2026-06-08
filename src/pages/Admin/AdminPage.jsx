@@ -206,8 +206,25 @@ export default function AdminPage({ toast, school = {} }) {
   }
 
   function toggleLock() {
-    updateDB((d) => { d.locked = !d.locked; return d; });
-    toast(db.locked ? "🔓 Results unlocked!" : "🔒 Results locked!", db.locked ? "success" : "error");
+    if (!db.locked) {
+      // LOCKING: generate passcodes for students with no ADM NO.
+      updateDB((d) => {
+        d.locked = true;
+        if (!d.passCodes) d.passCodes = {};
+        (d.students || []).forEach((s) => {
+          const info = (d.studentInfo || {})[s.id] || {};
+          if (!info.admNo && !d.passCodes[s.id]) {
+            // 6-char alphanumeric passcode, e.g. "A3K9PQ"
+            d.passCodes[s.id] = Math.random().toString(36).substring(2, 8).toUpperCase();
+          }
+        });
+        return d;
+      });
+      toast("🔒 Results locked! Passcodes generated for students without ADM NO.");
+    } else {
+      updateDB((d) => { d.locked = false; return d; });
+      toast("🔓 Results unlocked.");
+    }
   }
 
   // ── Edit student info ───────────────────────────────────────────────
@@ -661,20 +678,21 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               onClick={() => { navigator.clipboard.writeText(uid); }}
               style={{ padding: "4px 12px", background: "#f59e0b", border: "none", borderRadius: 6, fontFamily: "inherit", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#fff" }}
             >Copy</button>
-          {/* Universal result lookup link — shown only if any student has an admNo */}
-          {db.students.some((s) => (db.studentInfo || {})[s.id]?.admNo) && (() => {
+          {/* Universal result lookup link — shown only when results are locked */}
+          {(() => {
             const uid = localStorage.getItem("schoolUid") || "";
             const lookupUrl = uid ? `${window.location.origin}${window.location.pathname}?school=${uid}&lookup=1` : "";
-            return lookupUrl ? (
-              <div style={{ display:"flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:10, padding:"8px 14px", marginTop:6 }}>
-                <span style={{ fontSize:12, fontWeight:700, color:"#065f46" }}>🔗 Universal Result Link</span>
-                <span style={{ fontSize:12, color:"#064e3b", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:280 }}>{lookupUrl}</span>
+            if (!lookupUrl || !db.locked) return null;
+            return (
+              <div style={{ display:"flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"2px solid #059669", borderRadius:10, padding:"10px 14px", marginTop:8 }}>
+                <span style={{ fontSize:12, fontWeight:800, color:"#065f46", whiteSpace:"nowrap" }}>🔗 Parent Result Link</span>
+                <span style={{ fontSize:11, color:"#064e3b", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{lookupUrl}</span>
                 <button
-                  onClick={() => navigator.clipboard.writeText(lookupUrl).then(() => toast("✅ Universal link copied! Share with students."))}
-                  style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:"1px solid #86efac", background:"#fff", cursor:"pointer", color:"#065f46", fontWeight:700, whiteSpace:"nowrap" }}
-                >Copy Link</button>
+                  onClick={() => navigator.clipboard.writeText(lookupUrl).then(() => toast("✅ Parent link copied! Share this with parents — they enter their child's ADM NO. or passcode."))}
+                  style={{ fontSize:12, padding:"5px 14px", borderRadius:7, border:"none", background:"#059669", color:"#fff", cursor:"pointer", fontWeight:700, whiteSpace:"nowrap" }}
+                >📋 Copy</button>
               </div>
-            ) : null;
+            );
           })()}
             <span style={{ color: "#92400e", fontSize: 12 }}>Teachers paste this on first login from a new device.</span>
           </div>
@@ -709,7 +727,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
-                  <tr><th>#</th><th>Student Name</th><th>Class</th><th>Stream</th><th>Adm No.</th><th>Sex</th><th>Term</th><th>Days Present</th><th>Result Link</th><th>Actions</th></tr>
+                  <tr><th>#</th><th>Student Name</th><th>Class</th><th>Stream</th><th>Adm No.</th><th>Sex</th><th>Term</th><th>Days Present</th><th>Access Code</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {!filteredStudents.length ? (
@@ -743,16 +761,15 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                             : <em style={{ fontSize:11 }}>—</em>}
                         </td>
                         <td>
-                          {resultUrl ? (
-                            <Button
-                              size="sm"
-                              variant="gold"
-                              onClick={() => {
-                                navigator.clipboard.writeText(resultUrl);
-                                toast(`🔗 Link copied for ${s.name}!`);
-                              }}
-                            >🔗 Copy Link</Button>
-                          ) : <em style={{ fontSize: 11, color: "#aaa" }}>No school ID</em>}
+                          {info.admNo
+                            ? <span style={{ fontSize:12, color:"#065f46", fontWeight:700, background:"#d1fae5", padding:"2px 8px", borderRadius:8 }}>ADM: {info.admNo}</span>
+                            : (db.passCodes || {})[s.id]
+                              ? <span style={{ fontSize:13, fontFamily:"monospace", fontWeight:700, color:"#1d4ed8", background:"#dbeafe", padding:"3px 10px", borderRadius:8, letterSpacing:2, cursor:"pointer" }}
+                                  title="Share this code with the parent"
+                                  onClick={() => { navigator.clipboard.writeText((db.passCodes||{})[s.id]); toast(`📋 Passcode copied for ${s.name}`); }}>
+                                  {(db.passCodes||{})[s.id]}
+                                </span>
+                              : <em style={{ fontSize:11, color:"#94a3b8" }}>Lock results to generate</em>}
                         </td>
                         <td className={styles.actionCell}>
                           <Button size="sm" variant="sky" onClick={() => openEditStudent(s)}>✏️ Edit Info</Button>

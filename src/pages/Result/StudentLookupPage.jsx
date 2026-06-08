@@ -22,15 +22,24 @@ export default function StudentLookupPage({ schoolId }) {
       const db = await syncFromFirestore(schoolId);
       if (!db) { setStatus("error"); setErrMsg("School not found. Check the link."); return; }
 
-      // Find student by admNo (case-insensitive)
+      // Results must be locked to be accessible
+      if (!db.locked) {
+        setStatus("error");
+        setErrMsg("Results have not been published yet. Please check back later or contact your school admin.");
+        return;
+      }
+
+      // Find student by ADM NO. (case-insensitive) OR by passcode
       const student = db.students.find((s) => {
         const info = (db.studentInfo || {})[s.id] || {};
-        return (info.admNo || "").toLowerCase() === trimmed.toLowerCase();
+        const admMatch  = info.admNo && (info.admNo || "").toLowerCase() === trimmed.toLowerCase();
+        const passMatch = (db.passCodes || {})[s.id] && (db.passCodes[s.id] || "").toUpperCase() === trimmed.toUpperCase();
+        return admMatch || passMatch;
       });
 
       if (!student) {
         setStatus("error");
-        setErrMsg("No student found with that registration number. Check and try again.");
+        setErrMsg("No student found. Check your ADM NO. or passcode and try again.");
         return;
       }
 
@@ -69,13 +78,13 @@ export default function StudentLookupPage({ schoolId }) {
 
           <form onSubmit={handleLookup}>
             <label style={{ display:"block", fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:".5px", color:"#0f1f35", marginBottom:6 }}>
-              Registration Number
+              ADM Number or Passcode
             </label>
             <input
               type="text"
               value={regNo}
               onChange={(e) => { setRegNo(e.target.value); setStatus("idle"); setErrMsg(""); }}
-              placeholder="e.g. FP/2024/001"
+              placeholder="ADM NO. or passcode (e.g. A3K9PQ)"
               style={{ width:"100%", padding:"13px 16px", borderRadius:10, border:`1.5px solid ${status==="error"?"#fca5a5":"#e2e8f0"}`, fontSize:14, fontFamily:"inherit", outline:"none", color:"#0f1f35", background: status==="error"?"#fff8f8":"#fff", marginBottom:6 }}
               autoFocus
               disabled={status==="loading"}
