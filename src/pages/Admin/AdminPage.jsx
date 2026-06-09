@@ -1495,7 +1495,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
 
       {/* ══ ARCHIVE MODAL ══ */}
       {archiveModal && (
-        <Modal title={archiveStep === 1 ? "📦 End of Term" : "✅ Term Archived!"} onClose={() => { setArchiveModal(false); setArchiveStep(1); }}>
+        <Modal open={true} title={archiveStep === 1 ? "📦 End of Term" : "✅ Term Archived!"} onClose={() => { setArchiveModal(false); setArchiveStep(1); }}>
           {archiveStep === 1 ? (
             <div style={{ padding: "0 0 8px" }}>
               <div style={{ background: "#fef3c7", border: "1.5px solid #f59e0b", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13, color: "#78350f" }}>
@@ -1528,7 +1528,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
 
       {/* ══ VIEW PAST TERM MODAL ══ */}
       {viewingTerm && (
-        <Modal title={`📋 Results — ${viewingTerm.termLabel}`} onClose={() => setViewingTerm(null)}>
+        <Modal open={true} title={`📋 Results — ${viewingTerm.termLabel}`} onClose={() => setViewingTerm(null)}>
           <div style={{ padding: "0 0 8px" }}>
             <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
               Archived on {new Date(viewingTerm.archivedAt).toLocaleDateString("en-GB", { weekday:"long", day:"2-digit", month:"long", year:"numeric" })} · {(viewingTerm.students||[]).length} students · {(viewingTerm.subjects||[]).length} subjects
