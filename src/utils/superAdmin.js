@@ -5,7 +5,7 @@
 // Schools are created via the Firebase REST Identity Toolkit API so the
 // super admin stays signed in — the Firebase JS SDK would sign them out.
 
-import { doc, setDoc, getDoc, getDocs, collection, updateDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, getDocs, collection, updateDoc, Timestamp } from "firebase/firestore";
 import { firestore } from "../firebase";
 
 // ── CHANGE THIS to your own email ────────────────────────────────────────────
@@ -60,6 +60,14 @@ export async function createSchool({ schoolName, principalName, address, email, 
       createdAt:     new Date().toISOString(),
       active:        true,
       addedBy:       "superadmin",
+      plan: {
+        primary:     false,
+        secondary:   false,
+        paid:        false,
+        pendingPayment: false,
+        activatedAt: null,
+        expiresAt:   null,
+      },
     });
 
     // Empty schoolData so the school can start using it
@@ -89,6 +97,44 @@ export async function fetchAllSchools() {
   } catch (e) {
     console.error("fetchAllSchools error:", e);
     return [];
+  }
+}
+
+/**
+ * Update a school's plan (called from Super Admin when confirming payment).
+ * @param {string} uid
+ * @param {{ primary, secondary }} planUpdates
+ */
+export async function setSchoolPlan(uid, { primary, secondary }) {
+  try {
+    const now     = new Date();
+    const expires = new Date(now);
+    expires.setFullYear(expires.getFullYear() + 1);
+    expires.setDate(expires.getDate() + 30); // +30-day grace built in at activation
+
+    await updateDoc(doc(firestore, "schools", uid), {
+      "plan.primary":        !!primary,
+      "plan.secondary":      !!secondary,
+      "plan.paid":           true,
+      "plan.pendingPayment": false,
+      "plan.activatedAt":    now.toISOString(),
+      "plan.expiresAt":      expires.toISOString(),
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e.message };
+  }
+}
+
+/**
+ * Mark a school as having a pending payment (submitted the form but not yet verified).
+ */
+export async function setPendingPayment(uid, pending) {
+  try {
+    await updateDoc(doc(firestore, "schools", uid), { "plan.pendingPayment": pending });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e.message };
   }
 }
 

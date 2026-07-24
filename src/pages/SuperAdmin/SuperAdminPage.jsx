@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { compressImage } from "../../utils/imageUtils";
-import { createSchool, fetchAllSchools, setSchoolActive } from "../../utils/superAdmin";
+import { createSchool, fetchAllSchools, setSchoolActive, setSchoolPlan, setPendingPayment } from "../../utils/superAdmin";
 
 export default function SuperAdminPage({ onLogout }) {
   const [schools,  setSchools]  = useState([]);
@@ -17,6 +17,9 @@ export default function SuperAdminPage({ onLogout }) {
   });
   const [saving,   setSaving]   = useState(false);
   const [formErr,  setFormErr]  = useState("");
+  const [planModal, setPlanModal] = useState(null); // school object
+  const [planDraft, setPlanDraft] = useState({ primary: false, secondary: false });
+  const [planSaving, setPlanSaving] = useState(false);
   const logoRef = useRef();
 
   // ── Load schools on mount ────────────────────────────────────────────────
@@ -80,6 +83,20 @@ export default function SuperAdminPage({ onLogout }) {
     load();
   }
 
+  // ── Set school plan ──────────────────────────────────────────────────────
+  async function handleSetPlan() {
+    if (!planDraft.primary && !planDraft.secondary) {
+      showToast("Select at least one plan.", "error"); return;
+    }
+    setPlanSaving(true);
+    const result = await setSchoolPlan(planModal.id, planDraft);
+    setPlanSaving(false);
+    if (!result.ok) { showToast("Error: " + result.message, "error"); return; }
+    showToast(`✅ Plan activated for ${planModal.schoolName}.`);
+    setPlanModal(null);
+    load();
+  }
+
   // ── Copy helper ──────────────────────────────────────────────────────────
   function copy(text, label) {
     navigator.clipboard.writeText(text);
@@ -138,7 +155,7 @@ export default function SuperAdminPage({ onLogout }) {
             <table style={S.table}>
               <thead>
                 <tr>
-                  {["#","Logo","School Name","Principal","Email","Address","Added","Status","Actions"].map((h) => (
+                  {["#","Logo","School Name","Principal","Email","Plan","Pending","Added","Status","Actions"].map((h) => (
                     <th key={h} style={S.th}>{h}</th>
                   ))}
                 </tr>
@@ -156,6 +173,22 @@ export default function SuperAdminPage({ onLogout }) {
                     <td style={{ ...S.td, fontWeight: 700, minWidth: 160 }}>{s.schoolName}</td>
                     <td style={S.td}>{s.principalName || "—"}</td>
                     <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{s.email}</td>
+                    <td style={S.td}>
+                      {s.plan?.paid ? (
+                        <div>
+                          {s.plan.primary   && <span style={{ ...S.badge, background:"#dbeafe", color:"#1d4ed8" }}>Primary</span>}
+                          {s.plan.secondary && <span style={{ ...S.badge, background:"#d1fae5", color:"#065f46", marginLeft:3 }}>Secondary</span>}
+                          <div style={{ fontSize:10, color:"#64748b", marginTop:2 }}>
+                            Expires: {s.plan.expiresAt ? new Date(s.plan.expiresAt).toLocaleDateString() : "—"}
+                          </div>
+                        </div>
+                      ) : <span style={{ ...S.badge, background:"#f1f5f9", color:"#64748b" }}>Trial</span>}
+                    </td>
+                    <td style={S.td}>
+                      {s.plan?.pendingPayment
+                        ? <span style={{ ...S.badge, background:"#fef3c7", color:"#92400e", fontWeight:700 }}>⏳ Pending</span>
+                        : <span style={{ fontSize:11, color:"#94a3b8" }}>—</span>}
+                    </td>
                     <td style={{ ...S.td, maxWidth: 180, fontSize: 12 }}>{s.address}</td>
                     <td style={{ ...S.td, fontSize: 11, color: "#64748b" }}>
                       {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : "—"}
@@ -175,6 +208,10 @@ export default function SuperAdminPage({ onLogout }) {
                         style={{ ...S.actionBtn, background: "#e0f2fe", color: "#0369a1" }}
                         onClick={() => copy(s.email, "Email")}
                       >📋 Email</button>
+                      <button
+                        style={{ ...S.actionBtn, background:"#ede9fe", color:"#6d28d9", marginLeft:4 }}
+                        onClick={() => { setPlanModal(s); setPlanDraft({ primary: s.plan?.primary||false, secondary: s.plan?.secondary||false }); }}
+                      >🎯 Plan</button>
                       <button
                         style={{ ...S.actionBtn, background: s.active === false ? "#d1fae5" : "#fee2e2", color: s.active === false ? "#059669" : "#dc2626", marginLeft: 4 }}
                         onClick={() => toggleActive(s)}
@@ -288,6 +325,66 @@ export default function SuperAdminPage({ onLogout }) {
           </div>
         </div>
       )}
+
+      {/* ══ PLAN MODAL ══ */}
+      {planModal && (
+        <div style={S.overlay} onClick={(e) => e.target === e.currentTarget && setPlanModal(null)}>
+          <div style={{ ...S.modal, maxWidth: 480 }}>
+            <div style={S.modalHeader}>
+              <span style={S.modalTitle}>🎯 Manage Plan — {planModal.schoolName}</span>
+              <button style={S.closeBtn} onClick={() => setPlanModal(null)}>✕</button>
+            </div>
+            <div style={S.modalBody}>
+              <p style={{ fontSize:13, color:"#64748b", marginBottom:16 }}>
+                Select what this school has paid for. Check payment in your bank app first,
+                then tick the plan(s) and click Activate.
+              </p>
+
+              {/* Current plan status */}
+              <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, padding:"12px 16px", marginBottom:16, fontSize:13 }}>
+                <div style={{ fontWeight:700, marginBottom:6, color:"#0f172a" }}>Current Status</div>
+                <div>Plan: {planModal.plan?.paid ? (
+                  <><span style={{ color:"#059669", fontWeight:700 }}>Paid</span> &nbsp;·&nbsp; Expires: {planModal.plan.expiresAt ? new Date(planModal.plan.expiresAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "—"}</>
+                ) : <span style={{ color:"#d97706", fontWeight:700 }}>Trial</span>}</div>
+                {planModal.plan?.pendingPayment && <div style={{ color:"#92400e", fontWeight:700, marginTop:4 }}>⏳ Payment form submitted — awaiting your verification</div>}
+              </div>
+
+              {/* Plan checkboxes */}
+              <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:20 }}>
+                {[
+                  { key:"secondary", label:"Secondary Section", desc:"JSS 1–SSS 3 result management", color:"#065f46", bg:"#d1fae5", price:"₦XX,XXX/year" },
+                  { key:"primary",   label:"Primary Section",   desc:"Primary 1–6 result management", color:"#1d4ed8", bg:"#dbeafe", price:"₦XX,XXX/year" },
+                ].map(({ key, label, desc, color, bg, price }) => {
+                  const checked = planDraft[key];
+                  return (
+                    <label key={key} style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"12px 16px", borderRadius:10, border:`2px solid ${checked ? color : "#e2e8f0"}`, background: checked ? bg : "#f8fafc", cursor:"pointer", transition:"all .15s" }}>
+                      <input type="checkbox" checked={checked} style={{ accentColor:color, width:18, height:18, flexShrink:0, marginTop:1 }}
+                        onChange={() => setPlanDraft((p) => ({ ...p, [key]: !p[key] }))} />
+                      <div>
+                        <div style={{ fontWeight:700, color, fontSize:14 }}>{label}</div>
+                        <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>{desc}</div>
+                        <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{price} · Yearly + 30-day grace period</div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div style={{ background:"#fef3c7", border:"1px solid #f59e0b", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#78350f", marginBottom:8 }}>
+                ⚠️ Only activate after confirming the bank transfer in your account. Activation sets a 1-year + 30-day grace expiry from today.
+              </div>
+            </div>
+            <div style={S.modalFooter}>
+              <button style={S.cancelBtn} onClick={() => setPlanModal(null)} disabled={planSaving}>Cancel</button>
+              <button style={{ ...S.saveBtn, opacity: planSaving ? 0.7 : 1, cursor: planSaving ? "not-allowed" : "pointer" }}
+                onClick={handleSetPlan} disabled={planSaving}>
+                {planSaving ? "Activating…" : "✅ Activate Plan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -341,5 +438,6 @@ const S = {
   credLabel:  { fontWeight: 700, fontSize: 12, color: "#374151", width: 80, flexShrink: 0 },
   credVal:    { flex: 1, fontSize: 14, color: "#0f172a", wordBreak: "break-all" },
   credCopy:   { background: "#0f766e", color: "#fff", border: "none", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700, flexShrink: 0 },
+  badge:      { display:"inline-block", padding:"2px 8px", borderRadius:12, fontSize:11, fontWeight:600 },
   toast:      { position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", color: "#fff", padding: "12px 24px", borderRadius: 30, fontWeight: 700, fontSize: 14, zIndex: 9999, boxShadow: "0 4px 20px rgba(0,0,0,0.2)", whiteSpace: "nowrap" },
 };

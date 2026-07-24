@@ -17,6 +17,7 @@ const EMPTY_PROFILE = {
   address:       "",
   logo:          "",
   email:         "",
+  plan: { primary: false, secondary: false, paid: false, pendingPayment: false, activatedAt: null, expiresAt: null },
 };
 
 export function SchoolProvider({ children }) {
