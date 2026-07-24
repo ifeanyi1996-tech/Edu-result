@@ -3,6 +3,9 @@ import { useDB } from "../../context/DBContext";
 import { useSchool } from "../../context/SchoolContext";
 import { compressImage } from "../../utils/imageUtils";
 import { getClasses, rankStudents, getGrade, getSection, getSubjectsForClass, getTeacherSubjectIds } from "../../utils/grades";
+import { usePlan } from "../../utils/usePlan";
+import PaywallScreen from "../../components/common/PaywallScreen";
+import PlanBanner from "../../components/common/PlanBanner";
 import StatsRow from "../../components/admin/StatsRow";
 import AdminTabs from "../../components/admin/AdminTabs";
 import ClassResultsTable from "../../components/admin/ClassResultsTable";
@@ -11,6 +14,7 @@ import Card from "../../components/common/Card";
 import Modal from "../../components/common/Modal";
 import Input from "../../components/common/Input";
 import { archiveCurrentTerm, fetchArchivedTerms, buildResetDB, getNextClass } from "../../utils/db";
+import { reprovisionTeacherPin } from "../../utils/firebaseAuth";
 import SelectField from "../../components/common/SelectField";
 import styles from "./AdminPage.module.css";
 
@@ -24,7 +28,7 @@ const BEHAVIOUR_ROWS = [
 const GRADES_OPTS = ["A","B","C","D","E"];
 
 export default function AdminPage({ toast, school = {} }) {
-  const { db, updateDB } = useDB();
+  const { db, updateDB, section, switchSection, switching, dbScope } = useDB();
   const [activeTab, setActiveTab] = useState("students");
   const [classFilter, setClassFilter] = useState("");
   const [resultFilter, setResultFilter] = useState("");
@@ -73,6 +77,15 @@ export default function AdminPage({ toast, school = {} }) {
 
   // Roles draft
   const [rolesDraft, setRolesDraft] = useState({ formMaster: "", houseMistress: "", principal: "", formMasters: {} });
+
+  const { isGated, status: planStatus, hasPrimary, hasSecondary } = usePlan();
+  const [paywallAction, setPaywallAction] = useState(null); // which action triggered paywall
+
+  // Gate helper: if isGated, show paywall instead of running action
+  function gated(actionName, fn) {
+    if (isGated) { setPaywallAction(actionName); return; }
+    fn();
+  }
 
   const classes = getClasses(db.students);
 
@@ -160,20 +173,44 @@ export default function AdminPage({ toast, school = {} }) {
   }
 
   function openEditTeacher(teacher) {
-    setNewTeacher({ name: teacher.name, subjects: getTeacherSubjectIds(teacher) });
+    setNewTeacher({ name: teacher.name, subjects: getTeacherSubjectIds(teacher), pin: teacher.pin || "" });
     setEditTeacherModal(teacher);
   }
-  function saveEditTeacher() {
-    const name = newTeacher.name.trim();
+  async function saveEditTeacher() {
+    const name   = newTeacher.name.trim();
+    const newPin = (newTeacher.pin || "").trim();
     if (!name) return toast("Teacher name is required.", "error");
+
+    const oldPin     = editTeacherModal.pin || "";
+    const pinChanged = newPin && newPin !== String(oldPin);
+
     updateDB((d) => {
       const idx = d.teachers.findIndex((t) => t.id === editTeacherModal.id);
-      if (idx !== -1) d.teachers[idx] = { ...d.teachers[idx], name, subjects: newTeacher.subjects || [] };
+      if (idx !== -1) {
+        d.teachers[idx] = {
+          ...d.teachers[idx],
+          name,
+          subjects: newTeacher.subjects || [],
+          ...(newPin ? { pin: newPin } : {}),
+        };
+      }
       return d;
     });
+
+    if (pinChanged) {
+      toast("🔄 Updating PIN in Firebase Auth…");
+      const result = await reprovisionTeacherPin(editTeacherModal.id, oldPin, newPin);
+      if (!result.ok) {
+        toast("PIN saved. If teacher can't log in, delete their account in Firebase Console → Authentication and have them log in again.", "error");
+      } else {
+        toast("✅ Teacher and PIN updated successfully.");
+      }
+    } else {
+      toast("✅ Teacher updated.");
+    }
+
     setEditTeacherModal(null);
     setNewTeacher({ name: "", subjects: [] });
-    toast("✅ Teacher updated.");
   }
 
   function deleteTeacher(id) {
@@ -190,7 +227,10 @@ export default function AdminPage({ toast, school = {} }) {
   async function handleArchiveAndReset() {
     if (!archiveLabel.trim()) { setArchiveErr("Please enter a term name."); return; }
     setArchiveBusy(true); setArchiveErr("");
-    const result = await archiveCurrentTerm(db, archiveLabel);
+    const scope  = dbScope || null;
+    const result = scope
+      ? await scope.archive(db, archiveLabel)
+      : await archiveCurrentTerm(db, archiveLabel);
     if (!result.ok) { setArchiveErr(result.message); setArchiveBusy(false); return; }
     updateDB(() => buildResetDB(db));
     setArchiveBusy(false);
@@ -200,7 +240,7 @@ export default function AdminPage({ toast, school = {} }) {
 
   async function loadPastTerms() {
     if (pastTermsLoaded) return;
-    const terms = await fetchArchivedTerms();
+    const terms = dbScope ? await dbScope.fetchArchived() : await fetchArchivedTerms();
     setPastTerms(terms);
     setPastTermsLoaded(true);
   }
@@ -276,8 +316,11 @@ export default function AdminPage({ toast, school = {} }) {
   }
 
   // ── Print ───────────────────────────────────────────────────────────
-  function printResults() {
-    if (!classes.length) return toast("No students to print.", "error");
+  function printResults(sourceDB) {
+    // sourceDB is passed when printing a past term — falls back to live db
+    const pdb = sourceDB || db;
+    const pClasses = getClasses(pdb.students || []);
+    if (!pClasses.length) return toast("No students to print.", "error");
 
     // School profile from Firestore (passed in via props)
     const schoolName    = school.schoolName    || "School Name";
@@ -285,15 +328,20 @@ export default function AdminPage({ toast, school = {} }) {
     const schoolLogo    = school.logo          || ""; // base64 dataURL or ""
     const principalName = school.principalName || "";
 
+    // Compute termLabel from the source DB (past term has different term)
+    const _termNames  = ["First Term", "Second Term", "Third Term"];
+    const _ct         = pdb.currentTerm || { term:1, year:"2025/2026" };
+    const printTermLabel = `${_termNames[(_ct.term||1) - 1]} ${_ct.year}`;
+
     const classRankings = {};
-    classes.forEach((cls) => {
+    pClasses.forEach((cls) => {
       // Rank by average (total ÷ number of scored subjects) so missing entries don't distort rank
-      const classStudents = db.students.filter((s) => s.class === cls);
+      const classStudents = pdb.students.filter((s) => s.class === cls);
       const ranked = classStudents.map((s) => {
-        const clsSubjects = getSubjectsForClass(db.subjects, cls, s.stream);
-        const scored = clsSubjects.filter((sub) => (db.scores[s.id] || {})[sub.id]?.t1 !== undefined);
+        const clsSubjects = getSubjectsForClass(pdb.subjects, cls, s.stream);
+        const scored = clsSubjects.filter((sub) => (pdb.scores[s.id] || {})[sub.id]?.t1 !== undefined);
         const total  = scored.reduce((sum, sub) => {
-          const sc = (db.scores[s.id] || {})[sub.id] || {};
+          const sc = (pdb.scores[s.id] || {})[sub.id] || {};
           return sum + (Number(sc.t1)||0) + (Number(sc.t2)||0) + (Number(sc.exam)||0);
         }, 0);
         const avg = scored.length > 0 ? total / scored.length : 0;
@@ -377,42 +425,42 @@ export default function AdminPage({ toast, school = {} }) {
 
     let pages = "";
 
-    db.students.forEach((student) => {
+    pdb.students.forEach((student) => {
       const cls = student.class;
       const ranked = classRankings[cls] || [];
       // Ordinal helper
       const ordinal = (n) => { const s=["th","st","nd","rd"], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
       // Staff role → teacher id lookup
-      const roles = db.roles || {};
+      const roles = pdb.roles || {};
       const fmId  = (roles.formMasters || {})[cls] || roles.formMaster || "";
       const hmId  = roles.houseMistress || "";
       const prinId= roles.principal || "";
-      const sigs  = db.teacherSignatures || {};
+      const sigs  = pdb.teacherSignatures || {};
       const fmSig  = fmId   ? (sigs[fmId]   || "") : "";
       const hmSig  = hmId   ? (sigs[hmId]   || "") : "";
       const prinSig= prinId ? (sigs[prinId] || "") : "";
       const studentRank = ranked.find((r) => r.id === student.id);
       const position = studentRank ? ordinal(studentRank.pos) : "—";
       const totalStudents = ranked.length;
-      const info = (db.studentInfo || {})[student.id] || {};
-      const staffC = (db.staffComments || {})[student.id] || {};
-      const affData = (db.affective || {})[student.id] || {};
+      const info = (pdb.studentInfo || {})[student.id] || {};
+      const staffC = (pdb.staffComments || {})[student.id] || {};
+      const affData = (pdb.affective || {})[student.id] || {};
 
       let subjectRows = "";
       let grandTotal = 0;
 
       // Build teacher signature lookup: subjectId → signature data URL
       const printTeacherSig = {};
-      (db.teachers || []).forEach((t) => {
+      (pdb.teachers || []).forEach((t) => {
         const ids = Array.isArray(t.subjects) ? t.subjects : (t.subject ? [t.subject] : []);
-        const sig = (db.teacherSignatures || {})[t.id];
+        const sig = (pdb.teacherSignatures || {})[t.id];
         if (sig) ids.forEach((id) => { printTeacherSig[id] = sig; });
       });
-      const gradeConfig = db.gradeConfig || [];
+      const gradeConfig = pdb.gradeConfig || [];
 
-      const studentSubjects = getSubjectsForClass(db.subjects, student.class, student.stream);
+      const studentSubjects = getSubjectsForClass(pdb.subjects, student.class, student.stream);
       studentSubjects.forEach((sub) => {
-        const sc = (db.scores[student.id] || {})[sub.id] || {};
+        const sc = (pdb.scores[student.id] || {})[sub.id] || {};
         const t1   = sc.t1   !== undefined ? Number(sc.t1)   : "";
         const t2   = sc.t2   !== undefined ? Number(sc.t2)   : "";
         const exam = sc.exam !== undefined ? Number(sc.exam) : "";
@@ -437,7 +485,7 @@ export default function AdminPage({ toast, school = {} }) {
         </tr>`;
       });
 
-      const scoredSubjects = studentSubjects.filter((sub) => (db.scores[student.id] || {})[sub.id]?.t1 !== undefined).length;
+      const scoredSubjects = studentSubjects.filter((sub) => (pdb.scores[student.id] || {})[sub.id]?.t1 !== undefined).length;
       const maxPossible = scoredSubjects * 100;
       const avgPct = maxPossible > 0 ? ((grandTotal / maxPossible) * 100).toFixed(1) : "";
 
@@ -485,9 +533,9 @@ export default function AdminPage({ toast, school = {} }) {
           <tr>
             <td><span class="info-label">Form Position this Term: </span><span class="info-val">${position}</span></td>
             <td><span class="info-label">Out of: </span><span class="info-val">${totalStudents}</span></td>
-            <td colspan="2"><span class="info-label">Term: </span><span class="info-val">${termLabel}</span></td>
+            <td colspan="2"><span class="info-label">Term: </span><span class="info-val">${printTermLabel}</span></td>
           </tr>
-          ${(() => { const sd = db.schoolDays || 0; const dp = (db.attendance||{})[student.id]; if (!sd && dp === undefined) return ""; return `<tr><td><span class="info-label">Days Opened: </span><span class="info-val">${sd||"—"}</span></td><td><span class="info-label">Days Present: </span><span class="info-val">${dp !== undefined ? dp : "—"}</span></td><td colspan="2"><span class="info-label">Days Absent: </span><span class="info-val">${dp !== undefined && sd ? sd - dp : "—"}</span></td></tr>`; })()}
+          ${(() => { const sd = pdb.schoolDays || 0; const dp = (pdb.attendance||{})[student.id]; if (!sd && dp === undefined) return ""; return `<tr><td><span class="info-label">Days Opened: </span><span class="info-val">${sd||"—"}</span></td><td><span class="info-label">Days Present: </span><span class="info-val">${dp !== undefined ? dp : "—"}</span></td><td colspan="2"><span class="info-label">Days Absent: </span><span class="info-val">${dp !== undefined && sd ? sd - dp : "—"}</span></td></tr>`; })()}
         </table>
 
         <!-- ══ COGNITIVE DOMAIN ══ -->
@@ -543,7 +591,7 @@ export default function AdminPage({ toast, school = {} }) {
               <div class="sig-row">Signature: <span style="display:inline-block;position:relative;width:110px;border-bottom:1px solid #000;vertical-align:bottom;margin-left:4px">${prinSig ? `<img src="${prinSig}" style="height:22px;max-width:108px;object-fit:contain;position:absolute;bottom:1px;left:0" alt="sig"/>` : ""}</span></div>
             </div>
 
-            <div class="promoted">Promoted/Not Promoted: <strong>${(() => { const p = (db.promotion || {})[student.id]; return p === true ? "PROMOTED" : p === false ? "NOT PROMOTED" : "—"; })()}</strong></div>
+            <div class="promoted">Promoted/Not Promoted: <strong>${(() => { const p = (pdb.promotion || {})[student.id]; return p === true ? "PROMOTED" : p === false ? "NOT PROMOTED" : "—"; })()}</strong></div>
           </div>
 
           <!-- Right: affective -->
@@ -589,10 +637,10 @@ export default function AdminPage({ toast, school = {} }) {
   }
 
   // ── Derived ─────────────────────────────────────────────────────────
-  const filteredStudents = db.students.filter((s) => !classFilter || s.class === classFilter);
+  const filteredStudents = pdb.students.filter((s) => !classFilter || s.class === classFilter);
   const resultClasses = resultFilter ? [resultFilter] : classes;
-  const roles = db.roles || { formMaster: "", houseMistress: "", principal: "" };
-  const getTeacherName = (id) => db.teachers.find((t) => t.id === id)?.name || "— Not assigned —";
+  const roles = pdb.roles || { formMaster: "", houseMistress: "", principal: "" };
+  const getTeacherName = (id) => pdb.teachers.find((t) => t.id === id)?.name || "— Not assigned —";
 
   return (
     <div className={styles.page}>
@@ -609,7 +657,7 @@ export default function AdminPage({ toast, school = {} }) {
             <button
               title="Go back one term"
               onClick={() => {
-                const t = db.currentTerm || { term:1, year:"2025/2026" };
+                const t = pdb.currentTerm || { term:1, year:"2025/2026" };
                 const prevYear = (() => {
                   const m = t.year.match(/(\d{4})\/(\d{4})/);
                   return m ? `${parseInt(m[1])-1}/${parseInt(m[1])}` : t.year;
@@ -629,7 +677,7 @@ This only updates the term label.`)) {
             <button
               title="Advance one term"
               onClick={() => {
-                const t = db.currentTerm || { term:1, year:"2025/2026" };
+                const t = pdb.currentTerm || { term:1, year:"2025/2026" };
                 const newYear = (() => {
                   const m = t.year.match(/(\d{4})\/(\d{4})/);
                   return m ? `${parseInt(m[2])}/${parseInt(m[2])+1}` : t.year;
@@ -645,18 +693,40 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               style={{ fontSize:13, padding:"1px 7px", borderRadius:6, border:"1px solid #7dd3fc", background:"#fff", cursor:"pointer", color:"#0369a1", lineHeight:1.6 }}
             >▶</button>
           </div>
+          {/* ── Section switcher (only shown if school has both plans) ── */}
+          {hasPrimary && hasSecondary && (
+            <div style={{ display:"flex", gap:0, borderRadius:9, overflow:"hidden", border:"1.5px solid rgba(255,255,255,0.2)" }}>
+              {[
+                { key:"secondary", label:"🏫 Secondary" },
+                { key:"primary",   label:"🎒 Primary"   },
+              ].map(({ key, label }) => (
+                <button key={key}
+                  disabled={switching}
+                  onClick={() => switchSection(key)}
+                  style={{
+                    padding:"6px 16px", border:"none", cursor: switching ? "not-allowed" : "pointer",
+                    fontFamily:"inherit", fontSize:13, fontWeight:700, transition:"all .15s",
+                    background: section === key ? "#f0a500"            : "rgba(255,255,255,0.08)",
+                    color:      section === key ? "#0f1f35"            : "rgba(255,255,255,0.7)",
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+          {switching && <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>Loading…</span>}
+
           <Button variant="outline" onClick={openRoles}>👥 Assign Roles</Button>
-          <Button variant="outline" onClick={() => { setGradeDraft(JSON.parse(JSON.stringify(db.gradeConfig || []))); setGradeModal(true); }}>⚙️ Grade Config</Button>
+          <Button variant="outline" onClick={() => { setGradeDraft(JSON.parse(JSON.stringify(pdb.gradeConfig || []))); setGradeModal(true); }}>⚙️ Grade Config</Button>
           {isThirdTerm && (
             <Button variant="gold" onClick={() => setPromotionModal(true)}>🎓 Promotions</Button>
           )}
-          <Button variant={db.locked ? "emerald" : "red"} onClick={toggleLock}>
+          <Button variant={db.locked ? "emerald" : "red"} onClick={() => db.locked ? toggleLock() : gated("lock", toggleLock)}>
             {db.locked ? "🔓 Unlock Results" : "🔒 Lock Results"}
           </Button>
-          <Button variant="gold" onClick={printResults}>🖨️ Print Results</Button>
+          <Button variant="gold" onClick={() => gated("print", printResults)}>🖨️ Print Results</Button>
           <Button
             variant="red"
-            onClick={() => { setArchiveModal(true); setArchiveStep(1); setArchiveLabel(termLabel); setArchiveErr(""); }}
+            onClick={() => gated("endTerm", () => { setArchiveModal(true); setArchiveStep(1); setArchiveLabel(termLabel); setArchiveErr(""); })}
           >📦 End of Term</Button>
         </div>
       </div>
@@ -682,7 +752,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
           {(() => {
             const uid = localStorage.getItem("schoolUid") || "";
             const lookupUrl = uid ? `${window.location.origin}${window.location.pathname}?school=${uid}&lookup=1` : "";
-            if (!lookupUrl || !db.locked) return null;
+            if (!lookupUrl || !db.locked || isGated) return null;
             return (
               <div style={{ display:"flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"2px solid #059669", borderRadius:10, padding:"10px 14px", marginTop:8 }}>
                 <span style={{ fontSize:12, fontWeight:800, color:"#065f46", whiteSpace:"nowrap" }}>🔗 Parent Result Link</span>
@@ -699,8 +769,9 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
         ) : null;
       })()}
 
-      <StatsRow students={db.students.length} teachers={db.teachers.length} subjects={db.subjects.length} classes={classes.length} />
+      <StatsRow students={pdb.students.length} teachers={pdb.teachers.length} subjects={pdb.subjects.length} classes={classes.length} />
 
+      <PlanBanner />
       <AdminTabs active={activeTab} onChange={setActiveTab} />
 
       {/* ── STUDENTS TAB ── */}
@@ -715,9 +786,9 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                   {classes.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <Button size="sm" variant="sky" onClick={() => {
-                  setSchoolDaysDraft(db.schoolDays || 0);
+                  setSchoolDaysDraft(pdb.schoolDays || 0);
                   const draft = {};
-                  db.students.forEach((s) => { draft[s.id] = (db.attendance || {})[s.id] ?? ""; });
+                  pdb.students.forEach((s) => { draft[s.id] = (pdb.attendance || {})[s.id] ?? ""; });
                   setAttendanceDraft(draft);
                   setAttendanceModal(true);
                 }}>📅 Attendance</Button>
@@ -733,7 +804,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                   {!filteredStudents.length ? (
                     <tr><td colSpan={10} className={styles.emptyCell}>No students yet. Add one above.</td></tr>
                   ) : filteredStudents.map((s, i) => {
-                    const info = (db.studentInfo || {})[s.id] || {};
+                    const info = (pdb.studentInfo || {})[s.id] || {};
                     const schoolUid = localStorage.getItem("schoolUid") || "";
                     const resultUrl = schoolUid
                       ? `${window.location.origin}${window.location.pathname}?result=${s.id}&school=${schoolUid}`
@@ -756,8 +827,8 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                         <td className={styles.muted}>{info.sex || <em>—</em>}</td>
                         <td className={styles.muted}>{termLabel}</td>
                         <td className={styles.muted} style={{ textAlign:"center" }}>
-                          {(db.attendance || {})[s.id] !== undefined && (db.attendance || {})[s.id] !== ""
-                            ? <span style={{ fontWeight:700, color:"#0f172a" }}>{(db.attendance || {})[s.id]}<span style={{ fontWeight:400, color:"#94a3b8", fontSize:11 }}>/{db.schoolDays || "?"}</span></span>
+                          {(pdb.attendance || {})[s.id] !== undefined && (pdb.attendance || {})[s.id] !== ""
+                            ? <span style={{ fontWeight:700, color:"#0f172a" }}>{(pdb.attendance || {})[s.id]}<span style={{ fontWeight:400, color:"#94a3b8", fontSize:11 }}>/{pdb.schoolDays || "?"}</span></span>
                             : <em style={{ fontSize:11 }}>—</em>}
                         </td>
                         <td>
@@ -798,11 +869,11 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               <table className={styles.table}>
                 <thead><tr><th>#</th><th>Teacher Name</th><th>Assigned Subjects</th><th>Role</th><th>Login PIN</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {!db.teachers.length ? (
+                  {!pdb.teachers.length ? (
                     <tr><td colSpan={6} className={styles.emptyCell}>No teachers yet.</td></tr>
-                  ) : db.teachers.map((t, i) => {
+                  ) : pdb.teachers.map((t, i) => {
                     const teacherSubIds = getTeacherSubjectIds(t);
-                    const teacherSubs = db.subjects.filter((s) => teacherSubIds.includes(s.id));
+                    const teacherSubs = pdb.subjects.filter((s) => teacherSubIds.includes(s.id));
                     const teacherRoles = [];
                     const fmClasses = Object.entries(roles.formMasters || {}).filter(([,tid]) => tid === t.id).map(([cls]) => cls);
                     if (fmClasses.length > 0) teacherRoles.push(`Form Master (${fmClasses.join(", ")})`);
@@ -846,7 +917,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                 </tbody>
               </table>
             </div>
-            {db.teachers.length > 0 && (
+            {pdb.teachers.length > 0 && (
               <p className={styles.pinHint} style={{ marginTop: 10 }}>
                 📱 Teachers can log in from <strong>any device</strong> (phone, tablet, laptop) using their PIN at this app's URL.
               </p>
@@ -870,10 +941,10 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                   <th>#</th><th>Subject Name</th><th>Scope</th><th>Assigned Teacher</th><th>Actions</th>
                 </tr></thead>
                 <tbody>
-                  {!db.subjects.length ? (
+                  {!pdb.subjects.length ? (
                     <tr><td colSpan={6} className={styles.emptyCell}>No subjects yet.</td></tr>
-                  ) : db.subjects.map((s, i) => {
-                    const teachers  = db.teachers.filter((t) => getTeacherSubjectIds(t).includes(s.id));
+                  ) : pdb.subjects.map((s, i) => {
+                    const teachers  = pdb.teachers.filter((t) => getTeacherSubjectIds(t).includes(s.id));
                     const isDragging = dragIdx === i;
                     const isDragOver = dragIdx !== null && dragIdx !== i;
                     return (
@@ -947,7 +1018,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
           {!classes.length ? (
             <div className={styles.emptyState}><div className={styles.emptyIcon}>📊</div><p>No students added yet.</p></div>
           ) : resultClasses.map((cls) => (
-            <ClassResultsTable key={cls} className={cls} students={db.students.filter((s) => s.class === cls)} subjects={db.subjects} scores={db.scores} />
+            <ClassResultsTable key={cls} className={cls} students={pdb.students.filter((s) => s.class === cls)} subjects={pdb.subjects} scores={pdb.scores} />
           ))}
         </div>
       )}
@@ -987,8 +1058,8 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               // Group by class for readability
               const byClass = {};
               const visibleStudents = classFilter
-                ? db.students.filter(s => s.class === classFilter)
-                : db.students;
+                ? pdb.students.filter(s => s.class === classFilter)
+                : pdb.students;
               visibleStudents.forEach((s) => {
                 if (!byClass[s.class]) byClass[s.class] = [];
                 byClass[s.class].push(s);
@@ -1159,7 +1230,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
           ].map(({ key, label }) => (
             <SelectField key={key} label={label} value={rolesDraft[key] || ""} onChange={(e) => setRolesDraft((p) => ({ ...p, [key]: e.target.value }))}>
               <option value="">— Not assigned —</option>
-              {db.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {pdb.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </SelectField>
           ))}
 
@@ -1182,7 +1253,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                       }))}
                     >
                       <option value="">— Not assigned —</option>
-                      {db.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      {pdb.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                   </div>
                 ))}
@@ -1201,12 +1272,13 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
       <Modal open={!!editTeacherModal} onClose={() => { setEditTeacherModal(null); setNewTeacher({ name: "", subjects: [] }); }} title={`✏️ Edit Teacher — ${editTeacherModal?.name || ""}`}>
         <div className={styles.modalForm}>
           <Input label="Teacher Name" value={newTeacher.name} onChange={(e) => setNewTeacher((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Mr. Emeka Obi" />
+          <Input label="PIN (leave unchanged to keep existing PIN)" value={newTeacher.pin || ""} onChange={(e) => setNewTeacher((p) => ({ ...p, pin: e.target.value }))} placeholder="e.g. 1234" />
           <div>
             <label style={{ display:"block", fontWeight:700, fontSize:12, textTransform:"uppercase", letterSpacing:"0.5px", color:"var(--muted)", marginBottom:8 }}>
               Assigned Subjects <span style={{ fontWeight:400 }}>(tick all that apply)</span>
             </label>
             {["JSS","SSS","both"].map((sec) => {
-              const secSubjects = db.subjects.filter((s) => (s.section || "both") === sec);
+              const secSubjects = pdb.subjects.filter((s) => (s.section || "both") === sec);
               if (!secSubjects.length) return null;
               const secLabel = sec === "both" ? "All Levels" : sec;
               const secColor = sec === "SSS" ? "#1d4ed8" : sec === "JSS" ? "#065f46" : "#6d28d9";
@@ -1237,7 +1309,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                 </div>
               );
             })}
-            {db.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
+            {pdb.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
           </div>
           <div className={styles.modalActions}>
             <Button variant="outline" onClick={() => { setEditTeacherModal(null); setNewTeacher({ name: "", subjects: [] }); }}>Cancel</Button>
@@ -1249,6 +1321,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
       <Modal open={teacherModal} onClose={() => setTeacherModal(false)} title="Add New Teacher">
         <div className={styles.modalForm}>
           <Input label="Teacher Name" value={newTeacher.name} onChange={(e) => setNewTeacher((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Mr. Emeka Obi" />
+          <Input label="PIN (leave unchanged to keep existing PIN)" value={newTeacher.pin || ""} onChange={(e) => setNewTeacher((p) => ({ ...p, pin: e.target.value }))} placeholder="e.g. 1234" />
 
           {/* Multi-subject checkboxes grouped by section */}
           <div>
@@ -1256,7 +1329,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               Assigned Subjects <span style={{ fontWeight:400 }}>(tick all that apply)</span>
             </label>
             {["JSS","SSS","both"].map((sec) => {
-              const secSubjects = db.subjects.filter((s) => (s.section || "both") === sec);
+              const secSubjects = pdb.subjects.filter((s) => (s.section || "both") === sec);
               if (!secSubjects.length) return null;
               const secLabel = sec === "both" ? "All Levels" : sec;
               const secColor = sec === "SSS" ? "#1d4ed8" : sec === "JSS" ? "#065f46" : "#6d28d9";
@@ -1287,7 +1360,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                 </div>
               );
             })}
-            {db.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
+            {pdb.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
           </div>
 
           <p className={styles.pinHint}>
@@ -1574,15 +1647,19 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               </table>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-              <Button variant="gold" onClick={() => {
-                const origDB = window.__printDB__;
-                window.__printDB__ = viewingTerm;
-                printResults();
-                window.__printDB__ = origDB;
-              }}>🖨️ Print This Term's Results</Button>
+              <Button variant="gold" onClick={() => printResults(viewingTerm)}>
+                🖨️ Print This Term's Results
+              </Button>
             </div>
           </div>
         </Modal>
+      )}
+      {/* ══ PAYWALL ══ */}
+      {paywallAction && (
+        <PaywallScreen
+          status={planStatus}
+          onClose={() => setPaywallAction(null)}
+        />
       )}
     </div>
   );
@@ -1760,11 +1837,11 @@ function SchoolProfileTab({ school, toast }) {
 
 // ─── EnrollModal ──────────────────────────────────────────────────────────────
 function EnrollModal({ subject, db, updateDB, toast, onClose }) {
-  const enrolled   = (db.enrollment || {})[subject.id] || [];
+  const enrolled   = (pdb.enrollment || {})[subject.id] || [];
 
   // Group all students by class
   const byClass = {};
-  (db.students || []).forEach((s) => {
+  (pdb.students || []).forEach((s) => {
     if (!byClass[s.class]) byClass[s.class] = [];
     byClass[s.class].push(s);
   });
