@@ -135,18 +135,24 @@ export async function archiveCurrentTerm(db, termLabel) {
   if (!uid) return { ok: false, message: "No school ID found." };
 
   const snapshot = {
-    schoolUid:       uid,
-    termLabel:       termLabel.trim(),
-    archivedAt:      new Date().toISOString(),
-    // What we save — full result data
-    students:        db.students        || [],
-    subjects:        db.subjects        || [],
-    scores:          db.scores          || {},
-    studentInfo:     db.studentInfo     || {},
-    teacherComments: db.teacherComments || {},
-    affective:       db.affective       || {},
-    staffComments:   db.staffComments   || {},
-    roles:           db.roles           || {},
+    schoolUid:         uid,
+    termLabel:         termLabel.trim(),
+    archivedAt:        new Date().toISOString(),
+    students:          db.students          || [],
+    subjects:          db.subjects          || [],
+    scores:            db.scores            || {},
+    studentInfo:       db.studentInfo       || {},
+    teacherComments:   db.teacherComments   || {},
+    affective:         db.affective         || {},
+    staffComments:     db.staffComments     || {},
+    roles:             db.roles             || {},
+    // Extra fields needed for accurate past-term printing
+    currentTerm:       db.currentTerm       || {},
+    gradeConfig:       db.gradeConfig       || [],
+    teacherSignatures: db.teacherSignatures || {},
+    schoolDays:        db.schoolDays        || 0,
+    attendance:        db.attendance        || {},
+    promotion:         db.promotion         || {},
   };
 
   try {

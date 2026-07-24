@@ -329,9 +329,11 @@ export default function AdminPage({ toast, school = {} }) {
     const principalName = school.principalName || "";
 
     // Compute termLabel from the source DB (past term has different term)
+    // Use the archived termLabel if present; fall back to computing from currentTerm
     const _termNames  = ["First Term", "Second Term", "Third Term"];
     const _ct         = pdb.currentTerm || { term:1, year:"2025/2026" };
-    const printTermLabel = `${_termNames[(_ct.term||1) - 1]} ${_ct.year}`;
+    const printTermLabel = pdb.termLabel
+      || `${_termNames[(_ct.term||1) - 1]} ${_ct.year}`;
 
     const classRankings = {};
     pClasses.forEach((cls) => {
@@ -1636,8 +1638,10 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                         <td style={{ padding: "7px 10px", textAlign: "center" }}>
                           {(() => {
                             const classMates = (viewingTerm.students||[]).filter(s=>s.class===stu.class);
-                            const ranked = rankStudents(classMates, viewingTerm.scores||{});
-                            return ranked.find(r=>r.id===stu.id)?.pos ?? "—";
+                            const ranked = rankStudents(classMates, viewingTerm.scores||{}, viewingTerm.subjects||[]);
+                            const ordinal = (n) => { const s=["th","st","nd","rd"],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+                            const pos = ranked.find(r=>r.id===stu.id)?.pos;
+                            return pos ? ordinal(pos) : "—";
                           })()}
                         </td>
                       </tr>
