@@ -338,6 +338,11 @@ export default function StudentResultPage({ schoolId, studentId }) {
 
       {/* ── Footer ── */}
       <div style={styles.footer}>
+        {db.nextTermDate && (
+          <div style={{ fontSize:13, fontWeight:700, color:"#0f172a", marginBottom:6 }}>
+            📅 Next Term Begins: <span style={{ color:"#0d9488" }}>{db.nextTermDate}</span>
+          </div>
+        )}
         Powered by <b>EduResult</b> · This result was generated online and is valid.
       </div>
     </div>

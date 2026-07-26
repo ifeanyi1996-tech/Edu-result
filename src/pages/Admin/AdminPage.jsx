@@ -14,7 +14,6 @@ import Card from "../../components/common/Card";
 import Modal from "../../components/common/Modal";
 import Input from "../../components/common/Input";
 import { archiveCurrentTerm, fetchArchivedTerms, buildResetDB, getNextClass } from "../../utils/db";
-import { reprovisionTeacherPin } from "../../utils/firebaseAuth";
 import SelectField from "../../components/common/SelectField";
 import styles from "./AdminPage.module.css";
 
@@ -56,6 +55,8 @@ export default function AdminPage({ toast, school = {} }) {
   const [archiveStep,     setArchiveStep]     = useState(1); // 1=confirm 2=success
   const [archiveLabel,    setArchiveLabel]    = useState("");
   const [archiveBusy,     setArchiveBusy]     = useState(false);
+  const [nextTermModal,   setNextTermModal]   = useState(false);
+  const [nextTermDraft,   setNextTermDraft]   = useState("");
   const [archiveErr,      setArchiveErr]      = useState("");
   const [pastTerms,       setPastTerms]       = useState([]);
   const [pastTermsLoaded, setPastTermsLoaded] = useState(false);
@@ -199,7 +200,6 @@ export default function AdminPage({ toast, school = {} }) {
 
     if (pinChanged) {
       toast("🔄 Updating PIN in Firebase Auth…");
-      const result = await reprovisionTeacherPin(editTeacherModal.id, oldPin, newPin);
       if (!result.ok) {
         toast("PIN saved. If teacher can't log in, delete their account in Firebase Console → Authentication and have them log in again.", "error");
       } else {
@@ -401,11 +401,11 @@ export default function AdminPage({ toast, school = {} }) {
       /* ── Comments ── */
       .avg-row { font-size: 10px; font-weight: bold; margin-bottom: 6px; display: flex; gap: 4px; align-items: flex-end; }
       .avg-line { flex: 1; border-bottom: 1px solid #000; }
-      .comment-block { margin-bottom: 5px; font-size: 10px; }
-      .comment-block .clabel { font-weight: bold; }
-      .comment-block .ctext { border-bottom: 1px solid #000; min-height: 13px; font-size: 9.5px; padding: 1px 0; }
-      .comment-block .cline { border-bottom: 1px solid #000; height: 13px; margin-top: 2px; }
-      .sig-row { text-align: right; font-size: 9px; margin-top: 2px; }
+      .comment-block { margin-bottom: 10px; font-size: 10px; }
+      .comment-block .clabel { font-weight: bold; margin-bottom: 3px; display: block; }
+      .comment-block .ctext { border-bottom: 1px solid #000; min-height: 28px; font-size: 9.5px; padding: 2px 0 18px 0; line-height: 1.6; }
+      .comment-block .cline { border-bottom: 1px solid #000; height: 20px; margin-top: 4px; }
+      .sig-row { text-align: right; font-size: 9px; margin-top: 6px; }
       .sig-line { display: inline-block; border-bottom: 1px solid #000; width: 90px; margin-left: 4px; }
       .promoted { margin-top: 7px; font-size: 10px; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; }
 
@@ -614,6 +614,8 @@ export default function AdminPage({ toast, school = {} }) {
           </div>
         </div>
 
+        ${pdb.nextTermDate ? `<div style="text-align:center;font-size:10px;margin:8px 0 4px;"><strong>Next Term Begins: ${pdb.nextTermDate}</strong></div>` : ""}
+
         <!-- ══ PRINCIPAL SIGNATURE ══ -->
         <div class="prin-sig">________________________________<br/>Principal's Signature</div>
 
@@ -639,10 +641,10 @@ export default function AdminPage({ toast, school = {} }) {
   }
 
   // ── Derived ─────────────────────────────────────────────────────────
-  const filteredStudents = pdb.students.filter((s) => !classFilter || s.class === classFilter);
+  const filteredStudents = db.students.filter((s) => !classFilter || s.class === classFilter);
   const resultClasses = resultFilter ? [resultFilter] : classes;
-  const roles = pdb.roles || { formMaster: "", houseMistress: "", principal: "" };
-  const getTeacherName = (id) => pdb.teachers.find((t) => t.id === id)?.name || "— Not assigned —";
+  const roles = db.roles || { formMaster: "", houseMistress: "", principal: "" };
+  const getTeacherName = (id) => db.teachers.find((t) => t.id === id)?.name || "— Not assigned —";
 
   return (
     <div className={styles.page}>
@@ -659,7 +661,7 @@ export default function AdminPage({ toast, school = {} }) {
             <button
               title="Go back one term"
               onClick={() => {
-                const t = pdb.currentTerm || { term:1, year:"2025/2026" };
+                const t = db.currentTerm || { term:1, year:"2025/2026" };
                 const prevYear = (() => {
                   const m = t.year.match(/(\d{4})\/(\d{4})/);
                   return m ? `${parseInt(m[1])-1}/${parseInt(m[1])}` : t.year;
@@ -679,7 +681,7 @@ This only updates the term label.`)) {
             <button
               title="Advance one term"
               onClick={() => {
-                const t = pdb.currentTerm || { term:1, year:"2025/2026" };
+                const t = db.currentTerm || { term:1, year:"2025/2026" };
                 const newYear = (() => {
                   const m = t.year.match(/(\d{4})\/(\d{4})/);
                   return m ? `${parseInt(m[2])}/${parseInt(m[2])+1}` : t.year;
@@ -717,8 +719,9 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
           )}
           {switching && <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>Loading…</span>}
 
+          <Button variant="outline" onClick={() => { setNextTermDraft(db.nextTermDate||""); setNextTermModal(true); }}>📅 Next Term</Button>
           <Button variant="outline" onClick={openRoles}>👥 Assign Roles</Button>
-          <Button variant="outline" onClick={() => { setGradeDraft(JSON.parse(JSON.stringify(pdb.gradeConfig || []))); setGradeModal(true); }}>⚙️ Grade Config</Button>
+          <Button variant="outline" onClick={() => { setGradeDraft(JSON.parse(JSON.stringify(db.gradeConfig || []))); setGradeModal(true); }}>⚙️ Grade Config</Button>
           {isThirdTerm && (
             <Button variant="gold" onClick={() => setPromotionModal(true)}>🎓 Promotions</Button>
           )}
@@ -771,7 +774,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
         ) : null;
       })()}
 
-      <StatsRow students={pdb.students.length} teachers={pdb.teachers.length} subjects={pdb.subjects.length} classes={classes.length} />
+      <StatsRow students={db.students.length} teachers={db.teachers.length} subjects={db.subjects.length} classes={classes.length} />
 
       <PlanBanner />
       <AdminTabs active={activeTab} onChange={setActiveTab} />
@@ -788,9 +791,9 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                   {classes.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <Button size="sm" variant="sky" onClick={() => {
-                  setSchoolDaysDraft(pdb.schoolDays || 0);
+                  setSchoolDaysDraft(db.schoolDays || 0);
                   const draft = {};
-                  pdb.students.forEach((s) => { draft[s.id] = (pdb.attendance || {})[s.id] ?? ""; });
+                  db.students.forEach((s) => { draft[s.id] = (db.attendance || {})[s.id] ?? ""; });
                   setAttendanceDraft(draft);
                   setAttendanceModal(true);
                 }}>📅 Attendance</Button>
@@ -806,7 +809,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                   {!filteredStudents.length ? (
                     <tr><td colSpan={10} className={styles.emptyCell}>No students yet. Add one above.</td></tr>
                   ) : filteredStudents.map((s, i) => {
-                    const info = (pdb.studentInfo || {})[s.id] || {};
+                    const info = (db.studentInfo || {})[s.id] || {};
                     const schoolUid = localStorage.getItem("schoolUid") || "";
                     const resultUrl = schoolUid
                       ? `${window.location.origin}${window.location.pathname}?result=${s.id}&school=${schoolUid}`
@@ -829,8 +832,8 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                         <td className={styles.muted}>{info.sex || <em>—</em>}</td>
                         <td className={styles.muted}>{termLabel}</td>
                         <td className={styles.muted} style={{ textAlign:"center" }}>
-                          {(pdb.attendance || {})[s.id] !== undefined && (pdb.attendance || {})[s.id] !== ""
-                            ? <span style={{ fontWeight:700, color:"#0f172a" }}>{(pdb.attendance || {})[s.id]}<span style={{ fontWeight:400, color:"#94a3b8", fontSize:11 }}>/{pdb.schoolDays || "?"}</span></span>
+                          {(db.attendance || {})[s.id] !== undefined && (db.attendance || {})[s.id] !== ""
+                            ? <span style={{ fontWeight:700, color:"#0f172a" }}>{(db.attendance || {})[s.id]}<span style={{ fontWeight:400, color:"#94a3b8", fontSize:11 }}>/{db.schoolDays || "?"}</span></span>
                             : <em style={{ fontSize:11 }}>—</em>}
                         </td>
                         <td>
@@ -871,11 +874,11 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               <table className={styles.table}>
                 <thead><tr><th>#</th><th>Teacher Name</th><th>Assigned Subjects</th><th>Role</th><th>Login PIN</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {!pdb.teachers.length ? (
+                  {!db.teachers.length ? (
                     <tr><td colSpan={6} className={styles.emptyCell}>No teachers yet.</td></tr>
-                  ) : pdb.teachers.map((t, i) => {
+                  ) : db.teachers.map((t, i) => {
                     const teacherSubIds = getTeacherSubjectIds(t);
-                    const teacherSubs = pdb.subjects.filter((s) => teacherSubIds.includes(s.id));
+                    const teacherSubs = db.subjects.filter((s) => teacherSubIds.includes(s.id));
                     const teacherRoles = [];
                     const fmClasses = Object.entries(roles.formMasters || {}).filter(([,tid]) => tid === t.id).map(([cls]) => cls);
                     if (fmClasses.length > 0) teacherRoles.push(`Form Master (${fmClasses.join(", ")})`);
@@ -919,7 +922,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                 </tbody>
               </table>
             </div>
-            {pdb.teachers.length > 0 && (
+            {db.teachers.length > 0 && (
               <p className={styles.pinHint} style={{ marginTop: 10 }}>
                 📱 Teachers can log in from <strong>any device</strong> (phone, tablet, laptop) using their PIN at this app's URL.
               </p>
@@ -943,10 +946,10 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                   <th>#</th><th>Subject Name</th><th>Scope</th><th>Assigned Teacher</th><th>Actions</th>
                 </tr></thead>
                 <tbody>
-                  {!pdb.subjects.length ? (
+                  {!db.subjects.length ? (
                     <tr><td colSpan={6} className={styles.emptyCell}>No subjects yet.</td></tr>
-                  ) : pdb.subjects.map((s, i) => {
-                    const teachers  = pdb.teachers.filter((t) => getTeacherSubjectIds(t).includes(s.id));
+                  ) : db.subjects.map((s, i) => {
+                    const teachers  = db.teachers.filter((t) => getTeacherSubjectIds(t).includes(s.id));
                     const isDragging = dragIdx === i;
                     const isDragOver = dragIdx !== null && dragIdx !== i;
                     return (
@@ -1020,7 +1023,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
           {!classes.length ? (
             <div className={styles.emptyState}><div className={styles.emptyIcon}>📊</div><p>No students added yet.</p></div>
           ) : resultClasses.map((cls) => (
-            <ClassResultsTable key={cls} className={cls} students={pdb.students.filter((s) => s.class === cls)} subjects={pdb.subjects} scores={pdb.scores} />
+            <ClassResultsTable key={cls} className={cls} students={db.students.filter((s) => s.class === cls)} subjects={db.subjects} scores={db.scores} />
           ))}
         </div>
       )}
@@ -1060,8 +1063,8 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               // Group by class for readability
               const byClass = {};
               const visibleStudents = classFilter
-                ? pdb.students.filter(s => s.class === classFilter)
-                : pdb.students;
+                ? db.students.filter(s => s.class === classFilter)
+                : db.students;
               visibleStudents.forEach((s) => {
                 if (!byClass[s.class]) byClass[s.class] = [];
                 byClass[s.class].push(s);
@@ -1232,7 +1235,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
           ].map(({ key, label }) => (
             <SelectField key={key} label={label} value={rolesDraft[key] || ""} onChange={(e) => setRolesDraft((p) => ({ ...p, [key]: e.target.value }))}>
               <option value="">— Not assigned —</option>
-              {pdb.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {db.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </SelectField>
           ))}
 
@@ -1255,7 +1258,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                       }))}
                     >
                       <option value="">— Not assigned —</option>
-                      {pdb.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      {db.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                   </div>
                 ))}
@@ -1280,7 +1283,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               Assigned Subjects <span style={{ fontWeight:400 }}>(tick all that apply)</span>
             </label>
             {["JSS","SSS","both"].map((sec) => {
-              const secSubjects = pdb.subjects.filter((s) => (s.section || "both") === sec);
+              const secSubjects = db.subjects.filter((s) => (s.section || "both") === sec);
               if (!secSubjects.length) return null;
               const secLabel = sec === "both" ? "All Levels" : sec;
               const secColor = sec === "SSS" ? "#1d4ed8" : sec === "JSS" ? "#065f46" : "#6d28d9";
@@ -1311,7 +1314,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                 </div>
               );
             })}
-            {pdb.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
+            {db.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
           </div>
           <div className={styles.modalActions}>
             <Button variant="outline" onClick={() => { setEditTeacherModal(null); setNewTeacher({ name: "", subjects: [] }); }}>Cancel</Button>
@@ -1331,7 +1334,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
               Assigned Subjects <span style={{ fontWeight:400 }}>(tick all that apply)</span>
             </label>
             {["JSS","SSS","both"].map((sec) => {
-              const secSubjects = pdb.subjects.filter((s) => (s.section || "both") === sec);
+              const secSubjects = db.subjects.filter((s) => (s.section || "both") === sec);
               if (!secSubjects.length) return null;
               const secLabel = sec === "both" ? "All Levels" : sec;
               const secColor = sec === "SSS" ? "#1d4ed8" : sec === "JSS" ? "#065f46" : "#6d28d9";
@@ -1362,7 +1365,7 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                 </div>
               );
             })}
-            {pdb.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
+            {db.subjects.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Add subjects first before assigning teachers.</p>}
           </div>
 
           <p className={styles.pinHint}>
@@ -1428,6 +1431,34 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
                 setGradeModal(false);
                 toast("✅ Grade configuration saved.");
               }}>💾 Save Config</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ NEXT TERM DATE MODAL ══ */}
+      {nextTermModal && (
+        <Modal open={true} title="📅 Next Term Resume Date" onClose={() => setNextTermModal(false)}>
+          <div style={{ padding:"0 0 8px" }}>
+            <p style={{ fontSize:13, color:"#64748b", marginBottom:16 }}>
+              Set the date when the next term begins. This will appear at the bottom of every printed result sheet.
+            </p>
+            <Input
+              label="Resume Date"
+              value={nextTermDraft}
+              onChange={(e) => setNextTermDraft(e.target.value)}
+              placeholder="e.g. Monday, 15th September 2025"
+            />
+            <p style={{ fontSize:12, color:"#94a3b8", marginTop:6 }}>
+              You can type any format — e.g. "15th September 2025" or "Monday, 15 Sept."
+            </p>
+            <div style={{ display:"flex", justifyContent:"flex-end", gap:10, marginTop:20 }}>
+              <Button variant="outline" onClick={() => setNextTermModal(false)}>Cancel</Button>
+              <Button variant="emerald" onClick={() => {
+                updateDB((d) => { d.nextTermDate = nextTermDraft.trim(); return d; });
+                setNextTermModal(false);
+                toast("✅ Next term date saved.");
+              }}>💾 Save Date</Button>
             </div>
           </div>
         </Modal>
@@ -1841,11 +1872,11 @@ function SchoolProfileTab({ school, toast }) {
 
 // ─── EnrollModal ──────────────────────────────────────────────────────────────
 function EnrollModal({ subject, db, updateDB, toast, onClose }) {
-  const enrolled   = (pdb.enrollment || {})[subject.id] || [];
+  const enrolled   = (db.enrollment || {})[subject.id] || [];
 
   // Group all students by class
   const byClass = {};
-  (pdb.students || []).forEach((s) => {
+  (db.students || []).forEach((s) => {
     if (!byClass[s.class]) byClass[s.class] = [];
     byClass[s.class].push(s);
   });

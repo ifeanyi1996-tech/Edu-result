@@ -46,6 +46,7 @@ export function defaultDB() {
     passCodes:        {},  // passCodes[studentId] = auto-generated code (if no admNo)
     schoolDays:  0,   // number of days school was open this term
     attendance:  {},  // attendance[studentId] = number of days present
+    nextTermDate: "",  // displayed at bottom of result slips
   };
 }
 
@@ -76,6 +77,7 @@ function normalise(parsed) {
   if (!parsed.passCodes)       parsed.passCodes       = {};
   if (parsed.schoolDays === undefined) parsed.schoolDays = 0;
   if (!parsed.attendance)      parsed.attendance      = {};
+  if (parsed.nextTermDate === undefined) parsed.nextTermDate = "";
   if (!parsed.scores)         parsed.scores         = {};
   if (!parsed.students)       parsed.students       = [];
   if (!parsed.teachers)       parsed.teachers       = [];
