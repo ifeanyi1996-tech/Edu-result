@@ -1,25 +1,31 @@
 import React, { useState } from "react";
+import { useSchool } from "../../context/SchoolContext";
 
 // ─── PaywallScreen ────────────────────────────────────────────────────────────
 // Shown when a gated action is triggered and isGated === true.
 // Displays payment instructions + a form the school fills in to notify you.
 
-const WHATSAPP = "https://wa.me/2348XXXXXXXXX"; // ← replace with your number
-const FACEBOOK = "https://facebook.com/yourpage"; // ← replace with your page
+const WHATSAPP = "https://wa.me/2349022192423"; // ← replace with your number
+const FACEBOOK = "https://web.facebook.com/profile.php?id=61556376842293"; // ← replace with your page
 
-const PLANS = [
-  { key: "secondary", label: "Secondary Section (JSS 1 – SSS 3)", price: "₦XX,XXX / year" },
-  { key: "primary",   label: "Primary Section (Primary 1 – 6)",   price: "₦XX,XXX / year" },
-  { key: "both",      label: "Both Sections",                      price: "₦XX,XXX / year" },
-];
+// PLANS built dynamically inside component from profile.plan.quote
 
 const BANK = {
-  name:    "Your Bank Name",       // ← replace
-  account: "0000000000",           // ← replace
-  holder:  "Your Name / Business", // ← replace
+  name:    "Access Bank",       // ← replace
+  account: "0085049472",           // ← replace
+  holder:  "Ifeanyi Odoemenam", // ← replace
 };
 
 export default function PaywallScreen({ onClose, status }) {
+  const { profile } = useSchool();
+  const quote = profile?.plan?.quote || {};
+  const fmt   = (val) => val ? `₦${val} / year` : "Contact us for pricing";
+  const PLANS = [
+    { key:"secondary", label:"Secondary Section (JSS 1 – SSS 3)", price: fmt(quote.secondary) },
+    { key:"primary",   label:"Primary Section (Primary 1 – 6)",   price: fmt(quote.primary)   },
+    { key:"both",      label:"Both Sections",                        price: fmt(quote.both)      },
+  ];
+
   const [step,    setStep]    = useState(1); // 1=info, 2=form, 3=submitted
   const [form,    setForm]    = useState({ plan: "", ref: "", schoolName: "", phone: "" });
   const [err,     setErr]     = useState("");

@@ -19,7 +19,8 @@ export default function SuperAdminPage({ onLogout }) {
   const [formErr,  setFormErr]  = useState("");
   const [planModal, setPlanModal] = useState(null); // school object
   const [planDraft, setPlanDraft] = useState({ primary: false, secondary: false });
-  const [planSaving, setPlanSaving] = useState(false);
+  const [planSaving,  setPlanSaving]  = useState(false);
+  const [quoteDraft,  setQuoteDraft]  = useState({ secondary: "", primary: "", both: "" });
   const logoRef = useRef();
 
   // ── Load schools on mount ────────────────────────────────────────────────
@@ -89,7 +90,7 @@ export default function SuperAdminPage({ onLogout }) {
       showToast("Select at least one plan.", "error"); return;
     }
     setPlanSaving(true);
-    const result = await setSchoolPlan(planModal.id, planDraft);
+    const result = await setSchoolPlan(planModal.id, planDraft, quoteDraft);
     setPlanSaving(false);
     if (!result.ok) { showToast("Error: " + result.message, "error"); return; }
     showToast(`✅ Plan activated for ${planModal.schoolName}.`);
@@ -210,7 +211,15 @@ export default function SuperAdminPage({ onLogout }) {
                       >📋 Email</button>
                       <button
                         style={{ ...S.actionBtn, background:"#ede9fe", color:"#6d28d9", marginLeft:4 }}
-                        onClick={() => { setPlanModal(s); setPlanDraft({ primary: s.plan?.primary||false, secondary: s.plan?.secondary||false }); }}
+                        onClick={() => {
+          setPlanModal(s);
+          setPlanDraft({ primary: s.plan?.primary||false, secondary: s.plan?.secondary||false });
+          setQuoteDraft({
+            secondary: s.plan?.quote?.secondary || "",
+            primary:   s.plan?.quote?.primary   || "",
+            both:      s.plan?.quote?.both      || "",
+          });
+        }}
                       >🎯 Plan</button>
                       <button
                         style={{ ...S.actionBtn, background: s.active === false ? "#d1fae5" : "#fee2e2", color: s.active === false ? "#059669" : "#dc2626", marginLeft: 4 }}
@@ -368,6 +377,36 @@ export default function SuperAdminPage({ onLogout }) {
                     </label>
                   );
                 })}
+              </div>
+
+              {/* ── Price quotes per plan ── */}
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontWeight:700, fontSize:13, color:"#0f172a", marginBottom:8 }}>
+                  💰 Quoted Prices (shown to school on paywall)
+                </div>
+                {[
+                  { key:"secondary", label:"Secondary Section" },
+                  { key:"primary",   label:"Primary Section"   },
+                  { key:"both",      label:"Both Sections"     },
+                ].map(({ key, label }) => (
+                  <div key={key} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                    <span style={{ fontSize:13, color:"#374151", minWidth:140 }}>{label}</span>
+                    <div style={{ position:"relative", flex:1 }}>
+                      <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:13, color:"#64748b", fontWeight:700 }}>₦</span>
+                      <input
+                        type="text"
+                        value={quoteDraft[key]}
+                        onChange={(e) => setQuoteDraft((p) => ({ ...p, [key]: e.target.value }))}
+                        placeholder="e.g. 15,000"
+                        style={{ width:"100%", padding:"7px 10px 7px 26px", borderRadius:8, border:"1.5px solid #e2e8f0", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }}
+                      />
+                    </div>
+                    <span style={{ fontSize:12, color:"#94a3b8" }}>/year</span>
+                  </div>
+                ))}
+                <p style={{ fontSize:11, color:"#94a3b8", marginTop:4 }}>
+                  Leave blank to show "Contact us for pricing" on the paywall.
+                </p>
               </div>
 
               <div style={{ background:"#fef3c7", border:"1px solid #f59e0b", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#78350f", marginBottom:8 }}>

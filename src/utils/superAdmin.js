@@ -67,6 +67,7 @@ export async function createSchool({ schoolName, principalName, address, email, 
         pendingPayment: false,
         activatedAt: null,
         expiresAt:   null,
+        quote:       { secondary: "", primary: "", both: "" },
       },
     });
 
@@ -105,7 +106,7 @@ export async function fetchAllSchools() {
  * @param {string} uid
  * @param {{ primary, secondary }} planUpdates
  */
-export async function setSchoolPlan(uid, { primary, secondary }) {
+export async function setSchoolPlan(uid, { primary, secondary }, quote = {}) {
   try {
     const now     = new Date();
     const expires = new Date(now);
@@ -119,6 +120,11 @@ export async function setSchoolPlan(uid, { primary, secondary }) {
       "plan.pendingPayment": false,
       "plan.activatedAt":    now.toISOString(),
       "plan.expiresAt":      expires.toISOString(),
+      "plan.quote":          {
+        secondary: quote.secondary || "",
+        primary:   quote.primary   || "",
+        both:      quote.both      || "",
+      },
     });
     return { ok: true };
   } catch (e) {
