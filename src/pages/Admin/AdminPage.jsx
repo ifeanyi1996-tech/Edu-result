@@ -445,7 +445,13 @@ export default function AdminPage({ toast, school = {} }) {
       const position = studentRank ? ordinal(studentRank.pos) : "—";
       const totalStudents = ranked.length;
       const info = (pdb.studentInfo || {})[student.id] || {};
-      const staffC = (pdb.staffComments || {})[student.id] || {};
+      // Fall back to live db.staffComments if archive has none
+      // (happens when End of Term was clicked before comments were entered)
+      const _archivedComments = pdb.staffComments || {};
+      const _liveComments     = db.staffComments   || {};
+      const _comments = Object.keys(_archivedComments).length > 0
+        ? _archivedComments : _liveComments;
+      const staffC = _comments[student.id] || {};
       const affData = (pdb.affective || {})[student.id] || {};
 
       let subjectRows = "";

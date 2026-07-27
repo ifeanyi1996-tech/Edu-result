@@ -263,14 +263,18 @@ export function buildResetDB(db) {
     scores:          {},
     teacherComments: {},
     affective:       {},
-    staffComments:   {},
-    locked:          false,
-    studentInfo:     cleanedInfo,
-    currentTerm:     nextTerm,
-    promotion:       {},  // clear promotions for next cycle
-    teacherSignatures: db.teacherSignatures || {},  // signatures persist across terms
-    passCodes:        db.passCodes        || {},  // passcodes persist across terms
-    schoolDays:      0,   // reset for new term
-    attendance:      {},  // reset for new term
+    // staffComments kept — NOT cleared on reset so that:
+    // 1. Form masters who write comments after End of Term are still captured
+    // 2. Past-term prints always show the correct comments
+    // New term comments simply overwrite old ones student by student.
+    staffComments:    db.staffComments    || {},
+    locked:           false,
+    studentInfo:      cleanedInfo,
+    currentTerm:      nextTerm,
+    promotion:        {},  // clear promotions for next cycle
+    teacherSignatures: db.teacherSignatures || {},
+    passCodes:         db.passCodes        || {},
+    schoolDays:       0,
+    attendance:       {},
   };
 }
