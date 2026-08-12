@@ -14,7 +14,6 @@ import { useToast }      from "./utils/useToast";
 import { SUPER_ADMIN_EMAIL } from "./utils/superAdmin";
 import styles            from "./App.module.css";
 
-// ── Public result link detection ─────────────────────────────────────────────
 const params          = new URLSearchParams(window.location.search);
 const resultStudentId = params.get("result");
 const resultSchoolId  = params.get("school");
@@ -63,7 +62,6 @@ function AuthenticatedApp() {
     );
   }
 
-  // ── Not logged in ──────────────────────────────────────────────────────────
   if (!session) {
     return (
       <>
@@ -77,7 +75,6 @@ function AuthenticatedApp() {
     );
   }
 
-  // ── Super admin ────────────────────────────────────────────────────────────
   if (isSuperAdmin) {
     return (
       <>
@@ -88,7 +85,6 @@ function AuthenticatedApp() {
     );
   }
 
-  // ── School admin or teacher ────────────────────────────────────────────────
   return (
     <>
       <Toast toasts={toasts} />

@@ -360,7 +360,7 @@ export default function AdminPage({ toast, school = {} }) {
     const css = `
       @page { size: A4 portrait; margin: 8mm 10mm; }
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: Arial, sans-serif; font-size: 10.5px; color: #000; background: #fff; }
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #000; background: #fff; }
       .page { width: 100%; page-break-after: always; }
       .page:last-child { page-break-after: avoid; }
 
@@ -370,25 +370,25 @@ export default function AdminPage({ toast, school = {} }) {
       .header-logo img { width: 72px; height: 72px; object-fit: contain; }
       .header-logo-placeholder { width: 72px; height: 72px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; text-align: center; padding: 4px; line-height: 1.2; }
       .header-center { flex: 1; text-align: center; padding: 0 10px; }
-      .header-center h1 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
-      .header-center .addr { font-size: 10px; margin-top: 3px; }
+      .header-center h1 { font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
+      .header-center .addr { font-size: 11px; margin-top: 3px; }
       .header-passport { width: 72px; height: 85px; flex-shrink: 0; border: 1.5px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #555; text-align: center; overflow: hidden; }
       .header-passport img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
       /* ── Report title ── */
-      .report-title { text-align: center; font-size: 12px; font-weight: bold; text-decoration: underline; text-transform: uppercase; margin: 5px 0 4px; letter-spacing: 0.5px; }
+      .report-title { text-align: center; font-size: 13px; font-weight: bold; text-decoration: underline; text-transform: uppercase; margin: 5px 0 4px; letter-spacing: 0.5px; }
 
       /* ── Student info rows ── */
-      .info-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 3px; }
+      .info-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 3px; }
       .info-table td { border: 1px solid #000; padding: 2px 5px; }
       .info-label { font-weight: bold; white-space: nowrap; }
       .info-val { border-bottom: 1px solid #000; display: inline-block; min-width: 80px; }
 
       /* ── Cognitive domain ── */
-      .section-bar { background: #000; color: #fff; text-align: center; font-weight: bold; font-size: 10.5px; padding: 2px 4px; text-transform: uppercase; letter-spacing: 1px; margin: 4px 0 0; }
-      .cog-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+      .section-bar { background: #000; color: #fff; text-align: center; font-weight: bold; font-size: 12px; padding: 2px 4px; text-transform: uppercase; letter-spacing: 1px; margin: 4px 0 0; }
+      .cog-table { width: 100%; border-collapse: collapse; font-size: 11px; }
       .cog-table th, .cog-table td { border: 1px solid #000; padding: 1.5px 3px; text-align: center; vertical-align: middle; }
-      .cog-table thead th { background: #c8c8c8; font-weight: bold; font-size: 9px; }
+      .cog-table thead th { background: #c8c8c8; font-weight: bold; font-size: 10.5px; }
       .cog-table .subj { text-align: left; width: 22%; }
       .cog-table tbody tr { height: 15px; }
       .cog-table .total-row td { font-weight: bold; background: #e8e8e8; }
@@ -399,27 +399,27 @@ export default function AdminPage({ toast, school = {} }) {
       .bottom-right { width: 210px; flex-shrink: 0; }
 
       /* ── Comments ── */
-      .avg-row { font-size: 10px; font-weight: bold; margin-bottom: 6px; display: flex; gap: 4px; align-items: flex-end; }
+      .avg-row { font-size: 11px; font-weight: bold; margin-bottom: 6px; display: flex; gap: 4px; align-items: flex-end; }
       .avg-line { flex: 1; border-bottom: 1px solid #000; }
-      .comment-block { margin-bottom: 10px; font-size: 10px; }
+      .comment-block { margin-bottom: 10px; font-size: 11px; }
       .comment-block .clabel { font-weight: bold; margin-bottom: 3px; display: block; }
-      .comment-block .ctext { border-bottom: 1px solid #000; min-height: 28px; font-size: 9.5px; padding: 2px 0 18px 0; line-height: 1.6; }
+      .comment-block .ctext { border-bottom: 1px solid #000; min-height: 32px; font-size: 11px; padding: 2px 0 18px 0; line-height: 1.6; }
       .comment-block .cline { border-bottom: 1px solid #000; height: 20px; margin-top: 4px; }
-      .sig-row { text-align: right; font-size: 9px; margin-top: 6px; }
+      .sig-row { text-align: right; font-size: 10px; margin-top: 6px; }
       .sig-line { display: inline-block; border-bottom: 1px solid #000; width: 90px; margin-left: 4px; }
-      .promoted { margin-top: 7px; font-size: 10px; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; }
+      .promoted { margin-top: 7px; font-size: 11px; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; }
 
       /* ── Affective ── */
-      .aff-title { background: #000; color: #fff; text-align: center; font-weight: bold; font-size: 8.5px; padding: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
-      .aff-table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
+      .aff-title { background: #000; color: #fff; text-align: center; font-weight: bold; font-size: 10px; padding: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+      .aff-table { width: 100%; border-collapse: collapse; font-size: 10px; }
       .aff-table th, .aff-table td { border: 1px solid #000; padding: 1.5px 2px; text-align: center; vertical-align: middle; }
-      .aff-table .arow { text-align: left; font-size: 8px; }
-      .aff-table thead th { background: #c8c8c8; font-weight: bold; font-size: 8px; }
+      .aff-table .arow { text-align: left; font-size: 10px; }
+      .aff-table thead th { background: #c8c8c8; font-weight: bold; font-size: 10px; }
       .aff-table tbody tr { height: 13px; }
-      .aff-key { font-size: 7.5px; margin-top: 3px; line-height: 1.6; }
+      .aff-key { font-size: 9.5px; margin-top: 3px; line-height: 1.6; }
 
       /* ── Principal sig ── */
-      .prin-sig { text-align: right; margin-top: 8px; font-size: 9.5px; border-top: 1px solid #000; padding-top: 4px; }
+      .prin-sig { text-align: right; margin-top: 8px; font-size: 11px; border-top: 1px solid #000; padding-top: 4px; }
 
       /* ── Teacher initials img ── */
       .sig-img { height: 24px; max-width: 70px; object-fit: contain; display: block; margin: auto; }
@@ -488,7 +488,7 @@ export default function AdminPage({ toast, school = {} }) {
           <td>${exam !== "" ? exam : ""}</td>
           <td>${hasScore ? total : ""}</td>
           <td>${grade}</td>
-          <td style="font-size:8.5px;text-align:left;padding:1px 3px">${interpretation}</td>
+          <td style="font-size:11px;text-align:left;padding:2px 4px">${interpretation}</td>
           <td>${sigImg}</td>
         </tr>`;
       });
@@ -500,7 +500,7 @@ export default function AdminPage({ toast, school = {} }) {
       const affRows = BEHAVIOUR_ROWS.map((b) => {
         const rating = affData[b] || "";
         const cells = GRADES_OPTS.map((g) =>
-          `<td style="${rating === g ? ['text-align:center','font-size:11px'].join(';') : ''}">${rating === g ? '\u2713' : ''}</td>`
+          `<td style="${rating === g ? ['text-align:center','font-size:13px','font-weight:bold'].join(';') : ''}">${rating === g ? '\u2713' : ''}</td>`
         ).join("");
         return `<tr><td class="act-col">${b}</td>${cells}</tr>`;
       }).join("");
@@ -735,6 +735,12 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
             {db.locked ? "🔓 Unlock Results" : "🔒 Lock Results"}
           </Button>
           <Button variant="gold" onClick={() => gated("print", printResults)}>🖨️ Print Results</Button>
+          <Button variant="outline" onClick={() => gated("print", () => {
+            // Export: same as print but guide user to Save as PDF
+            if (window.confirm('In the print dialog that opens:\n\n1. Change the Printer to "Save as PDF"\n2. Click Save\n\nThis downloads a PDF you can print anywhere.')) {
+              printResults();
+            }
+          })}>📥 Export PDF</Button>
           <Button
             variant="red"
             onClick={() => gated("endTerm", () => { setArchiveModal(true); setArchiveStep(1); setArchiveLabel(termLabel); setArchiveErr(""); })}
