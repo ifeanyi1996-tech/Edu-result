@@ -1712,6 +1712,60 @@ This only updates the term label. Use "End of Term" to archive and reset scores.
   );
 }
 
+// ─── ChangePasswordForm ──────────────────────────────────────────────────────────
+function ChangePasswordForm({ toast }) {
+  const [cur,  setCur]  = React.useState("");
+  const [next, setNext] = React.useState("");
+  const [conf, setConf] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [err,  setErr]  = React.useState("");
+  const [ok,   setOk]   = React.useState(false);
+
+  async function handleChange() {
+    setErr(""); setOk(false);
+    if (!cur.trim())  return setErr("Enter your current password.");
+    if (next.length < 6) return setErr("New password must be at least 6 characters.");
+    if (next !== conf) return setErr("New passwords do not match.");
+    setBusy(true);
+    const { changeSchoolPassword } = await import("../../utils/firebaseAuth");
+    const result = await changeSchoolPassword(cur, next);
+    setBusy(false);
+    if (!result.ok) return setErr(result.message);
+    setCur(""); setNext(""); setConf("");
+    setOk(true);
+    toast("✅ Password changed successfully.");
+  }
+
+  async function handleForgot() {
+    const { sendPasswordReset } = await import("../../utils/firebaseAuth");
+    const email = window.prompt("Enter your school email address to receive a reset link:");
+    if (!email) return;
+    const result = await sendPasswordReset(email.trim());
+    if (result.ok) toast("📧 Password reset email sent. Check your inbox.");
+    else toast("Error: " + result.message, "error");
+  }
+
+  const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:9, border:"1.5px solid #e2e8f0", fontSize:14, fontFamily:"inherit", outline:"none", marginBottom:10, boxSizing:"border-box" };
+
+  return (
+    <div style={{ maxWidth:420 }}>
+      <input type="password" placeholder="Current password" value={cur}  onChange={e=>{setCur(e.target.value);setErr("");setOk(false);}} style={inputStyle} />
+      <input type="password" placeholder="New password (min 6 chars)" value={next} onChange={e=>{setNext(e.target.value);setErr("");}} style={inputStyle} />
+      <input type="password" placeholder="Confirm new password" value={conf} onChange={e=>{setConf(e.target.value);setErr("");}} style={inputStyle} />
+      {err && <div style={{background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:8,padding:"9px 14px",color:"#dc2626",fontSize:13,marginBottom:10}}>⚠️ {err}</div>}
+      {ok  && <div style={{background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:8,padding:"9px 14px",color:"#059669",fontSize:13,marginBottom:10}}>✅ Password updated successfully.</div>}
+      <div style={{display:"flex",gap:10,alignItems:"center"}}>
+        <button onClick={handleChange} disabled={busy} style={{padding:"10px 22px",background:"var(--navy)",color:"#fff",border:"none",borderRadius:9,fontFamily:"inherit",fontSize:14,fontWeight:700,cursor:busy?"not-allowed":"pointer",opacity:busy?0.7:1}}>
+          {busy ? "Changing…" : "🔑 Change Password"}
+        </button>
+        <button onClick={handleForgot} style={{fontSize:13,color:"var(--teal)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}>
+          Forgot password?
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── SchoolProfileTab ─────────────────────────────────────────────────────────
 // Inline sub-component — lets the admin edit school name, principal, address, logo.
 // Changes are saved to Firestore via SchoolContext.updateProfile.
@@ -1870,6 +1924,13 @@ function SchoolProfileTab({ school, toast }) {
         )}
 
         {/* Save button */}
+        {/* Change Password */}
+        <div style={{ marginTop:28, borderTop:"1.5px solid #e2e8f0", paddingTop:20 }}>
+          <div style={{ fontSize:15, fontWeight:700, color:"var(--navy)", marginBottom:14 }}>🔑 Change Password</div>
+          <ChangePasswordForm toast={toast} />
+        </div>
+
+
         <button
           onClick={handleSave}
           disabled={saving}
