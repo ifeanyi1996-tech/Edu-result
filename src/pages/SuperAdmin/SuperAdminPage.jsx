@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { compressImage } from "../../utils/imageUtils";
-import { createSchool, fetchAllSchools, setSchoolActive, setSchoolPlan, setPendingPayment } from "../../utils/superAdmin";
+import { createSchool, fetchAllSchools, setSchoolActive, setSchoolPlan, setPendingPayment, setSchoolFree, deleteSchool } from "../../utils/superAdmin";
 
 export default function SuperAdminPage({ onLogout }) {
   const [schools,  setSchools]  = useState([]);
@@ -81,6 +81,24 @@ export default function SuperAdminPage({ onLogout }) {
     const next = !school.active;
     await setSchoolActive(school.id, next);
     showToast(next ? `✅ ${school.schoolName} activated.` : `🔒 ${school.schoolName} deactivated.`);
+    load();
+  }
+
+  // ── Toggle free forever ────────────────────────────────────────────────
+  async function toggleFree(s) {
+    const isFree = s.plan?.free;
+    const result = await setSchoolFree(s.id, !isFree);
+    if (!result.ok) { showToast("Error: " + result.message, "error"); return; }
+    showToast(isFree ? `✅ ${s.schoolName} removed from free tier.` : `✅ ${s.schoolName} marked as free forever.`);
+    load();
+  }
+
+  // ── Delete school ────────────────────────────────────────────────────────
+  async function handleDelete(s) {
+    if (!window.confirm('Permanently delete "' + s.schoolName + '"?\n\nThis removes all their data. This cannot be undone.')) return;
+    const result = await deleteSchool(s.id);
+    if (!result.ok) { showToast("Error: " + result.message, "error"); return; }
+    showToast("School deleted permanently.");
     load();
   }
 
@@ -210,6 +228,11 @@ export default function SuperAdminPage({ onLogout }) {
                         onClick={() => copy(s.email, "Email")}
                       >📋 Email</button>
                       <button
+                        title={s.plan?.free ? "Remove free tier" : "Mark as free forever (no paywall)"}
+                        style={{ ...S.actionBtn, background: s.plan?.free ? "#fef3c7" : "#f1f5f9", color: s.plan?.free ? "#92400e" : "#64748b", marginLeft:4, fontWeight: s.plan?.free ? 700 : 400 }}
+                        onClick={() => toggleFree(s)}
+                      >{s.plan?.free ? "🎁 Free ✓" : "🎁 Free"}</button>
+                      <button
                         style={{ ...S.actionBtn, background:"#ede9fe", color:"#6d28d9", marginLeft:4 }}
                         onClick={() => {
           setPlanModal(s);
@@ -225,6 +248,11 @@ export default function SuperAdminPage({ onLogout }) {
                         style={{ ...S.actionBtn, background: s.active === false ? "#d1fae5" : "#fee2e2", color: s.active === false ? "#059669" : "#dc2626", marginLeft: 4 }}
                         onClick={() => toggleActive(s)}
                       >{s.active === false ? "✅ Activate" : "🔒 Deactivate"}</button>
+                      <button
+                        title="Permanently delete this school"
+                        style={{ ...S.actionBtn, background:"#fef2f2", color:"#dc2626", marginLeft:4, fontWeight:700 }}
+                        onClick={() => handleDelete(s)}
+                      >🗑 Delete</button>
                     </td>
                   </tr>
                 ))}

@@ -5,7 +5,7 @@
 // Schools are created via the Firebase REST Identity Toolkit API so the
 // super admin stays signed in — the Firebase JS SDK would sign them out.
 
-import { doc, setDoc, getDoc, getDocs, collection, updateDoc, Timestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { firestore } from "../firebase";
 
 // ── CHANGE THIS to your own email ────────────────────────────────────────────
@@ -133,11 +133,43 @@ export async function setSchoolPlan(uid, { primary, secondary }, quote = {}) {
 }
 
 /**
+ * Toggle a school's "free forever" flag.
+ * Free schools bypass the paywall entirely — no plan required.
+ */
+export async function setSchoolFree(uid, free) {
+  try {
+    await updateDoc(doc(firestore, "schools", uid), {
+      "plan.free":      !!free,
+      "plan.primary":   true,
+      "plan.secondary": true,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e.message };
+  }
+}
+
+/**
  * Mark a school as having a pending payment (submitted the form but not yet verified).
  */
 export async function setPendingPayment(uid, pending) {
   try {
     await updateDoc(doc(firestore, "schools", uid), { "plan.pendingPayment": pending });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e.message };
+  }
+}
+
+/**
+ * Permanently delete a school from Firestore.
+ */
+export async function deleteSchool(uid) {
+  try {
+    await Promise.all([
+      deleteDoc(doc(firestore, "schools",    uid)).catch(() => {}),
+      deleteDoc(doc(firestore, "schoolData", uid)).catch(() => {}),
+    ]);
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e.message };
